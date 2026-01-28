@@ -1,0 +1,55 @@
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:5000/api';
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Company APIs
+export const companyAPI = {
+  getCompany: () => api.get('/company'),
+  createCompany: (data) => api.post('/company', data),
+  updateCompany: (id, data) => api.put(`/company/${id}`, data),
+};
+
+// Product APIs
+export const productAPI = {
+  getAllProducts: (params) => api.get('/products', { params }),
+  getProductById: (id) => api.get(`/products/${id}`),
+  getProductsByCategory: (category) => api.get(`/products/category/${category}`),
+  createProduct: (data) => api.post('/products', data),
+  updateProduct: (id, data) => api.put(`/products/${id}`, data),
+  toggleProductStatus: (id) => api.patch(`/products/${id}/toggle`),
+  deleteProduct: (id) => api.delete(`/products/${id}`),
+};
+
+// Client APIs
+export const clientAPI = {
+  getAllClients: (params) => api.get('/clients', { params }),
+  getClientById: (id) => api.get(`/clients/${id}`),
+  createClient: (data) => api.post('/clients', data),
+  updateClient: (id, data) => api.put(`/clients/${id}`, data),
+  toggleClientStatus: (id) => api.patch(`/clients/${id}/toggle`),
+  deleteClient: (id) => api.delete(`/clients/${id}`),
+};
+
+// Invoice APIs
+export const invoiceAPI = {
+  getAllInvoices: (params) => api.get('/invoices', { params }),
+  getInvoiceById: (id) => api.get(`/invoices/${id}`),
+  getInvoiceByNumber: (invoiceNumber) => api.get(`/invoices/number/${invoiceNumber}`),
+  getInvoiceStats: () => api.get('/invoices/stats'),
+  createInvoice: (data) => api.post('/invoices', data),
+  updateInvoice: (id, data) => api.put(`/invoices/${id}`, data),
+  recordPayment: (id, amount) => api.patch(`/invoices/${id}/payment`, { amount }),
+  updateInvoiceStatus: (id, status) => api.patch(`/invoices/${id}/status`, { status }),
+  updateMilestoneStatus: (id, itemIndex, milestoneIndex, data) => 
+    api.patch(`/invoices/${id}/milestone/${itemIndex}/${milestoneIndex}`, data),
+  deleteInvoice: (id) => api.delete(`/invoices/${id}`),
+};
+
+export default api;
