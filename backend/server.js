@@ -18,7 +18,7 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: 'https://invoice-generator-frontend.netlify.app/', // replace with your Netlify URL
+  origin: 'https://invoice-generator-frontend.netlify.app', // replace with your Netlify URL
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true
 }));
