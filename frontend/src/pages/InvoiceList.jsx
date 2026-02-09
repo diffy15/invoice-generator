@@ -134,11 +134,8 @@ const InvoiceList = () => {
               className="input-field"
             >
               <option value="">All Status</option>
-              <option value="Draft">Draft</option>
-              <option value="Sent">Sent</option>
               <option value="Paid">Paid</option>
-              <option value="Overdue">Overdue</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="Unpaid">Unpaid</option>
             </select>
           </div>
 
@@ -252,15 +249,6 @@ const InvoiceList = () => {
                       >
                         <FiPrinter />
                       </button>
-                      {invoice.status !== 'Sent' && invoice.status !== 'Paid' && (
-                        <button
-                          onClick={() => handleStatusUpdate(invoice._id, 'Sent')}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Mark as Sent"
-                        >
-                          <FiEye />
-                        </button>
-                      )}
                       {invoice.paymentStatus !== 'Paid' && (
                         <button
                           onClick={() => handleOpenPaymentModal(invoice)}

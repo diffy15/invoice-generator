@@ -6,10 +6,6 @@ const companySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  logo: {
-    type: String, // URL or base64
-    default: ''
-  },
   address: {
     street: { type: String, required: true },
     city: { type: String, required: true },
@@ -23,7 +19,8 @@ const companySchema = new mongoose.Schema({
     website: { type: String, default: '' }
   },
   taxInfo: {
-    gstin: { type: String, required: true }, // GST Number
+    gstEnabled: { type: Boolean, default: true },
+    gstin: { type: String, default: '' },
     pan: { type: String, default: '' }
   },
   bankDetails: {
@@ -32,11 +29,17 @@ const companySchema = new mongoose.Schema({
     bankName: { type: String, default: '' },
     ifscCode: { type: String, default: '' },
     branch: { type: String, default: '' },
-    upiId: { type: String, default: '' }
+    upiId: { type: String, default: '' },
+    upiPhone: { type: String, default: '' }
   },
   termsAndConditions: {
     type: String,
     default: 'Payment is due within 30 days of invoice date.'
+  },
+  monthlyTarget: {
+    type: Number,
+    default: 500000,
+    min: 0
   },
   isActive: {
     type: Boolean,

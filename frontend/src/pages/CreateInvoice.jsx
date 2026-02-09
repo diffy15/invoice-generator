@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { invoiceAPI, clientAPI, productAPI, companyAPI } from '../services/api';
+import { invoiceAPI, clientAPI, productAPI, companyAPI, categoryAPI } from '../services/api';
 import { calculateInvoiceTotals, formatCurrency } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import { FiPlus, FiTrash2, FiSave } from 'react-icons/fi';
@@ -10,6 +10,7 @@ const CreateInvoice = () => {
   const [company, setCompany] = useState(null);
   const [clients, setClients] = useState([]);
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -29,9 +30,10 @@ const CreateInvoice = () => {
     }],
     discount: 0,
     discountType: 'percentage',
-    taxRate: 18,
+    taxRate: 0, // Will be set from company settings
     notes: '',
-    status: 'Draft'
+    discountDescription: '',
+    thankYouMessage: 'Thank you for your business!'
   });
 
   useEffect(() => {
@@ -40,22 +42,36 @@ const CreateInvoice = () => {
 
   const fetchInitialData = async () => {
     try {
-      const [companyRes, clientsRes, productsRes] = await Promise.all([
+      const [companyRes, clientsRes, productsRes, catRes] = await Promise.all([
         companyAPI.getCompany(),
         clientAPI.getAllClients(),
-        productAPI.getAllProducts()
+        productAPI.getAllProducts(),
+        categoryAPI.getAllCategories().catch(() => ({ data: { data: [] }}))
       ]);
 
       setCompany(companyRes.data.data);
       setClients(clientsRes.data.data);
       setProducts(productsRes.data.data);
 
+      // Get categories from both Category model and existing products
+      const dbCategories = catRes.data.data || [];
+      const productCategories = [...new Set(productsRes.data.data.map(p => p.category).filter(Boolean))];
+      const allCategories = [...new Set([...dbCategories, ...productCategories])].sort();
+      setCategories(allCategories);
+
+      const companyData = companyRes.data.data;
+      
       // Set default due date (30 days from now)
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 30);
+      
+      // Set default tax rate based on company GST settings
+      const defaultTaxRate = companyData?.taxInfo?.gstEnabled ? 18 : 0;
+      
       setFormData(prev => ({
         ...prev,
-        dueDate: dueDate.toISOString().split('T')[0]
+        dueDate: dueDate.toISOString().split('T')[0],
+        taxRate: defaultTaxRate
       }));
     } catch (error) {
       toast.error('Failed to load data');
@@ -82,28 +98,11 @@ const CreateInvoice = () => {
         updatedItems[index].description = selectedProduct.description;
         updatedItems[index].rate = selectedProduct.defaultRate;
         updatedItems[index].billingType = selectedProduct.billingType;
-        
-        // Initialize productDetails for Product billing type
-        if (selectedProduct.billingType === 'Product') {
-          updatedItems[index].productDetails = {
-            productName: selectedProduct.serviceName,
-            totalValue: selectedProduct.defaultRate,
-            paymentType: 'Full',
-            amountForThisInvoice: selectedProduct.defaultRate
-          };
-        } else {
-          // Remove productDetails for non-Product billing types
-          delete updatedItems[index].productDetails;
-        }
       }
     }
 
     // Calculate amount
-    if (updatedItems[index].billingType === 'Product' && updatedItems[index].productDetails) {
-      updatedItems[index].amount = updatedItems[index].productDetails.amountForThisInvoice || 0;
-    } else {
-      updatedItems[index].amount = (updatedItems[index].quantity || 1) * (updatedItems[index].rate || 0);
-    }
+    updatedItems[index].amount = updatedItems[index].quantity * updatedItems[index].rate;
 
     setFormData(prev => ({ ...prev, items: updatedItems }));
   };
@@ -156,25 +155,35 @@ const CreateInvoice = () => {
         ...formData,
         company: company._id,
         items: formData.items.map(item => {
-          const itemData = {
+          const baseItem = {
             category: item.category,
             service: item.service,
             description: item.description,
             billingType: item.billingType,
-            quantity: parseFloat(item.quantity) || 1,
-            rate: parseFloat(item.rate) || 0,
-            amount: parseFloat(item.quantity || 1) * parseFloat(item.rate || 0)
+            amount: parseFloat(item.quantity) * parseFloat(item.rate)
           };
 
-          // Only add productDetails if billing type is Product
-          if (item.billingType === 'Product' && item.productDetails) {
-            itemData.productDetails = item.productDetails;
+          // For Product billing type, add productDetails
+          if (item.billingType === 'Product') {
+            baseItem.productDetails = {
+              productName: item.service,
+              totalValue: parseFloat(item.quantity) * parseFloat(item.rate),
+              paymentType: 'Full',
+              amountForThisInvoice: parseFloat(item.quantity) * parseFloat(item.rate)
+            };
+            // Still include quantity and rate for consistency
+            baseItem.quantity = parseFloat(item.quantity);
+            baseItem.rate = parseFloat(item.rate);
+          } else {
+            // For Hourly/Fixed/Retainer, use quantity and rate
+            baseItem.quantity = parseFloat(item.quantity);
+            baseItem.rate = parseFloat(item.rate);
           }
 
-          return itemData;
+          return baseItem;
         }),
-        discount: parseFloat(formData.discount) || 0,
-        taxRate: parseFloat(formData.taxRate) || 18
+        discount: parseFloat(formData.discount),
+        taxRate: parseFloat(formData.taxRate)
       };
 
       await invoiceAPI.createInvoice(invoiceData);
@@ -192,13 +201,6 @@ const CreateInvoice = () => {
     formData.discountType,
     formData.taxRate
   );
-
-  const categories = [
-    'IT Services & Custom Software Development',
-    'Web & Mobile Application Solutions',
-    'Digital Marketing & Brand Acceleration',
-    'Creative Strategy & Product Innovation'
-  ];
 
   if (loading) {
     return (
@@ -369,6 +371,23 @@ const CreateInvoice = () => {
                     </select>
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Billing Type *
+                    </label>
+                    <select
+                      value={item.billingType}
+                      onChange={(e) => handleItemChange(index, 'billingType', e.target.value)}
+                      required
+                      className="input-field"
+                    >
+                      <option value="Hourly">Hourly</option>
+                      <option value="Fixed">Fixed Price</option>
+                      <option value="Retainer">Retainer</option>
+                      <option value="Product">Product</option>
+                    </select>
+                  </div>
+
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Description
@@ -466,6 +485,11 @@ const CreateInvoice = () => {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tax Rate (%)
+                {!company?.taxInfo?.gstEnabled && (
+                  <span className="ml-2 text-xs text-orange-600 font-normal">
+                    (GST disabled in Company Settings)
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -475,8 +499,15 @@ const CreateInvoice = () => {
                 min="0"
                 max="100"
                 step="0.01"
-                className="input-field"
+                disabled={!company?.taxInfo?.gstEnabled}
+                className={`input-field ${!company?.taxInfo?.gstEnabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                placeholder={!company?.taxInfo?.gstEnabled ? 'GST disabled' : '18'}
               />
+              {!company?.taxInfo?.gstEnabled && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Enable GST in Company Settings to add tax to invoices
+                </p>
+              )}
             </div>
 
             <div>
@@ -491,6 +522,46 @@ const CreateInvoice = () => {
                 placeholder="Any additional notes..."
                 className="input-field"
               ></textarea>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Discount Description
+              </label>
+              <input
+                type="text"
+                name="discountDescription"
+                value={formData.discountDescription}
+                onChange={handleInputChange}
+                placeholder="e.g., Early payment discount, Bulk order discount..."
+                className="input-field"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.discountDescription && formData.discount === 0 ? (
+                  <span className="text-orange-600 font-medium">
+                    ⚠️ Note: Description will only show if Discount amount is greater than 0
+                  </span>
+                ) : (
+                  'Brief note about what the discount is for (shows only when discount > 0)'
+                )}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Thank You Message
+              </label>
+              <input
+                type="text"
+                name="thankYouMessage"
+                value={formData.thankYouMessage}
+                onChange={handleInputChange}
+                placeholder="Thank you for your business!"
+                className="input-field"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Custom message shown at the bottom of the invoice
+              </p>
             </div>
           </div>
 

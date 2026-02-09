@@ -1,22 +1,31 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // safe even if not used now
 });
 
-// Company APIs
+/* -------------------- COMPANY -------------------- */
 export const companyAPI = {
   getCompany: () => api.get('/company'),
   createCompany: (data) => api.post('/company', data),
   updateCompany: (id, data) => api.put(`/company/${id}`, data),
 };
 
-// Product APIs
+// Category APIs
+export const categoryAPI = {
+  getAllCategories: () => api.get('/categories'),
+  createCategory: (data) => api.post('/categories', data),
+  updateCategory: (oldName, data) => api.put(`/categories/${encodeURIComponent(oldName)}`, data),
+  deleteCategory: (name) => api.delete(`/categories/${encodeURIComponent(name)}`),
+};
+
+/* -------------------- PRODUCTS -------------------- */
 export const productAPI = {
   getAllProducts: (params) => api.get('/products', { params }),
   getProductById: (id) => api.get(`/products/${id}`),
@@ -27,7 +36,7 @@ export const productAPI = {
   deleteProduct: (id) => api.delete(`/products/${id}`),
 };
 
-// Client APIs
+/* -------------------- CLIENTS -------------------- */
 export const clientAPI = {
   getAllClients: (params) => api.get('/clients', { params }),
   getClientById: (id) => api.get(`/clients/${id}`),
@@ -37,17 +46,20 @@ export const clientAPI = {
   deleteClient: (id) => api.delete(`/clients/${id}`),
 };
 
-// Invoice APIs
+/* -------------------- INVOICES -------------------- */
 export const invoiceAPI = {
   getAllInvoices: (params) => api.get('/invoices', { params }),
   getInvoiceById: (id) => api.get(`/invoices/${id}`),
-  getInvoiceByNumber: (invoiceNumber) => api.get(`/invoices/number/${invoiceNumber}`),
+  getInvoiceByNumber: (invoiceNumber) =>
+    api.get(`/invoices/number/${invoiceNumber}`),
   getInvoiceStats: () => api.get('/invoices/stats'),
   createInvoice: (data) => api.post('/invoices', data),
   updateInvoice: (id, data) => api.put(`/invoices/${id}`, data),
-  recordPayment: (id, amount) => api.patch(`/invoices/${id}/payment`, { amount }),
-  updateInvoiceStatus: (id, status) => api.patch(`/invoices/${id}/status`, { status }),
-  updateMilestoneStatus: (id, itemIndex, milestoneIndex, data) => 
+  recordPayment: (id, amount) =>
+    api.patch(`/invoices/${id}/payment`, { amount }),
+  updateInvoiceStatus: (id, status) =>
+    api.patch(`/invoices/${id}/status`, { status }),
+  updateMilestoneStatus: (id, itemIndex, milestoneIndex, data) =>
     api.patch(`/invoices/${id}/milestone/${itemIndex}/${milestoneIndex}`, data),
   deleteInvoice: (id) => api.delete(`/invoices/${id}`),
 };

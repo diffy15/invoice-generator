@@ -30,11 +30,11 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="bg-primary-600 p-2 rounded-lg">
+            <div className="bg-green-600 p-2 rounded-lg">
               <FiDollarSign className="text-white text-xl" />
             </div>
             <span className="text-xl font-bold text-gray-900">
-              Invoice<span className="text-primary-600">Pro</span>
+              Strategic<span className="text-green-600">Knights</span>
             </span>
           </Link>
           
@@ -51,12 +51,12 @@ const Navbar = () => {
                   className={`
                     flex items-center space-x-2 px-4 py-2 rounded-lg transition-all
                     ${active 
-                      ? 'bg-primary-50 text-primary-700 font-semibold' 
+                      ? 'bg-green-50 text-green-700 font-semibold' 
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }
                   `}
                 >
-                  <Icon className={`text-lg ${active ? 'text-primary-600' : ''}`} />
+                  <Icon className={`text-lg ${active ? 'text-green-600' : ''}`} />
                   <span>{item.name}</span>
                 </Link>
               );
@@ -88,12 +88,12 @@ const Navbar = () => {
                 className={`
                   flex items-center space-x-3 px-3 py-2 rounded-lg
                   ${active 
-                    ? 'bg-primary-50 text-primary-700 font-semibold' 
+                    ? 'bg-green-50 text-green-700 font-semibold' 
                     : 'text-gray-600 hover:bg-gray-50'
                   }
                 `}
               >
-                <Icon className={`text-lg ${active ? 'text-primary-600' : ''}`} />
+                <Icon className={`text-lg ${active ? 'text-green-600' : ''}`} />
                 <span>{item.name}</span>
               </Link>
             );

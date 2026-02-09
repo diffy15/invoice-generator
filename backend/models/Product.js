@@ -4,12 +4,7 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: [
-      'IT Services & Custom Software Development',
-      'Web & Mobile Application Solutions',
-      'Digital Marketing & Brand Acceleration',
-      'Creative Strategy & Product Innovation'
-    ]
+    trim: true
   },
   serviceName: {
     type: String,

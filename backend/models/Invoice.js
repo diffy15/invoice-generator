@@ -171,14 +171,22 @@ const invoiceSchema = new mongoose.Schema({
   // Invoice status
   status: {
     type: String,
-    enum: ['Draft', 'Sent', 'Paid', 'Overdue', 'Cancelled'],
-    default: 'Draft'
+    enum: ['Paid', 'Unpaid'],
+    default: 'Unpaid'
   },
   
   // Additional notes
   notes: {
     type: String,
     default: ''
+  },
+  discountDescription: {
+    type: String,
+    default: ''
+  },
+  thankYouMessage: {
+    type: String,
+    default: 'Thank you for your business!'
   },
   termsAndConditions: {
     type: String,

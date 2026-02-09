@@ -1,7 +1,29 @@
 import { formatCurrency, formatDate } from './helpers';
+import logo from '../assets/logo.png';
+import watermark from '../assets/watermark.png';
 
-export const generateInvoicePDF = (invoice, company, client) => {
-  // Create a new window for printing
+// Helper function to convert image to base64
+const getBase64Image = async (imgPath) => {
+  try {
+    const response = await fetch(imgPath);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error loading image:', error);
+    return imgPath; // Fallback to original path
+  }
+};
+
+export const generateInvoicePDF = async (invoice, company, client) => {
+  // Convert images to base64
+  const watermarkBase64 = await getBase64Image(watermark);
+  const logoBase64 = await getBase64Image(logo);
+  
   const printWindow = window.open('', '_blank');
   
   if (!printWindow) {
@@ -11,432 +33,190 @@ export const generateInvoicePDF = (invoice, company, client) => {
 
   const html = `
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invoice ${invoice.invoiceNumber}</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    @page {
-      size: A4;
-      margin: 15mm;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: A4; margin: 15mm; }
+    
     body {
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Segoe UI', Arial, sans-serif;
       font-size: 10pt;
-      line-height: 1.5;
       color: #2d3748;
-      background: white;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      background: #f0f0f0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
     }
-
+    
     .invoice-container {
-      width: 100%;
+      position: relative;
+      width: 210mm;
+      min-height: 297mm;
       background: white;
+      padding: 15mm;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      overflow: hidden;
     }
-
-    /* Header */
-    .header {
+    
+    /* Watermark - SHOWS THROUGH CONTENT */
+    .watermark-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50%;
+      max-width: 500px;
+      opacity: 0.20;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .watermark-overlay img { 
+      width: 100%; 
+      height: auto; 
+      display: block;
+    }
+    
+    /* Header - LOGO MOVED DOWN */
+    .header { margin-bottom: 20px; }
+    .header-top {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 25px;
-      padding-bottom: 15px;
-      border-bottom: 3px solid #1a202c;
-      page-break-inside: avoid;
-    }
-
-    .company-info {
-      flex: 1;
-    }
-
-    .company-name {
-      font-size: 24pt;
-      font-weight: 700;
-      color: #1a202c;
-      margin-bottom: 6px;
-      letter-spacing: -0.5px;
-    }
-
-    .company-details {
-      font-size: 9pt;
-      color: #4a5568;
-      line-height: 1.6;
-    }
-
-    .invoice-title-section {
-      text-align: right;
-    }
-
-    .invoice-label {
-      font-size: 32pt;
-      font-weight: 700;
-      color: #1a202c;
-      letter-spacing: -1px;
-      margin-bottom: 6px;
-    }
-
-    .invoice-number {
-      font-size: 12pt;
-      color: #4a5568;
-      font-weight: 600;
-    }
-
-    /* Info Section */
-    .info-section {
-      display: flex;
-      gap: 30px;
-      margin-bottom: 25px;
-      page-break-inside: avoid;
-    }
-
-    .info-block {
-      flex: 1;
-    }
-
-    .info-title {
-      font-size: 8pt;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: #1a202c;
-      letter-spacing: 0.5px;
-      margin-bottom: 10px;
-      padding-bottom: 5px;
-      border-bottom: 2px solid #e2e8f0;
-    }
-
-    .info-content {
-      font-size: 9pt;
-      line-height: 1.7;
-      color: #4a5568;
-    }
-
-    .info-row {
-      display: flex;
-      margin-bottom: 5px;
-    }
-
-    .info-label {
-      min-width: 85px;
-      font-weight: 600;
-      color: #2d3748;
-    }
-
-    .client-name {
-      font-size: 11pt;
-      font-weight: 700;
-      color: #1a202c;
-      margin-bottom: 6px;
-    }
-
-    /* Table */
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-      page-break-inside: auto;
-    }
-
-    .items-table thead {
-      background-color: #2d3748;
-      color: white;
-    }
-
-    .items-table thead tr {
-      page-break-inside: avoid;
-      page-break-after: avoid;
-    }
-
-    .items-table th {
-      padding: 12px 10px;
-      text-align: left;
-      font-weight: 600;
-      font-size: 8pt;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border: none;
-    }
-
-    .items-table th:last-child,
-    .items-table td:last-child {
-      text-align: right;
-    }
-
-    .items-table tbody tr {
-      border-bottom: 1px solid #e2e8f0;
-      page-break-inside: avoid;
-    }
-
-    .items-table tbody tr:nth-child(even) {
-      background-color: #f7fafc;
-    }
-
-    .items-table td {
-      padding: 10px;
-      font-size: 9pt;
-      color: #2d3748;
-      vertical-align: top;
-    }
-
-    .item-number {
-      width: 35px;
-      font-weight: 600;
-      color: #718096;
-    }
-
-    .item-name {
-      font-weight: 600;
-      color: #1a202c;
-      margin-bottom: 2px;
-    }
-
-    .item-category {
-      font-size: 7pt;
-      color: #718096;
-      font-style: italic;
-    }
-
-    .item-description {
-      color: #4a5568;
-      font-size: 8pt;
-    }
-
-    /* Totals */
-    .totals-section {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 20px;
-      page-break-inside: avoid;
-    }
-
-    .totals-table {
-      width: 280px;
-    }
-
-    .totals-table tr {
-      border: none;
-    }
-
-    .totals-table td {
-      padding: 8px 0;
-      font-size: 10pt;
-      border: none;
-    }
-
-    .totals-label {
-      text-align: right;
-      padding-right: 25px;
-      color: #4a5568;
-      font-weight: 500;
-    }
-
-    .totals-value {
-      text-align: right;
-      font-weight: 600;
-      color: #2d3748;
-    }
-
-    .total-row {
-      border-top: 3px solid #2d3748;
-      border-bottom: 3px double #2d3748;
-    }
-
-    .total-row td {
-      padding: 12px 0;
-      font-size: 13pt;
-      font-weight: 700;
-      color: #1a202c;
-    }
-
-    /* Payment Status Box */
-    .payment-status-box {
-      background-color: #f0fdf4;
-      border-left: 4px solid #16a34a;
-      padding: 15px;
-      margin-bottom: 20px;
-      page-break-inside: avoid;
-    }
-
-    .payment-status-box.partial {
-      background-color: #fef3c7;
-      border-left-color: #f59e0b;
-    }
-
-    .payment-status-box.unpaid {
-      background-color: #fee2e2;
-      border-left-color: #dc2626;
-    }
-
-    .payment-status-title {
-      font-size: 9pt;
-      font-weight: 700;
-      color: #1a202c;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .payment-status-content {
-      font-size: 9pt;
-      line-height: 1.6;
-      color: #4a5568;
-    }
-
-    .payment-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 5px;
-    }
-
-    .payment-label {
-      font-weight: 600;
-    }
-
-    .payment-value {
-      font-weight: 700;
-    }
-
-    /* Additional Info Boxes */
-    .info-box {
-      background-color: #f7fafc;
-      border-left: 4px solid #2d3748;
-      padding: 15px;
       margin-bottom: 15px;
-      page-break-inside: avoid;
     }
-
-    .info-box-title {
-      font-size: 9pt;
-      font-weight: 700;
-      color: #1a202c;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .logo-section img { 
+      height: 95px; 
+      width: auto; 
+      display: block;
+      margin-top: 20px;
     }
-
-    .info-box-content {
-      font-size: 8pt;
-      line-height: 1.7;
-      color: #4a5568;
+    .invoice-title-section { text-align: right; }
+    .invoice-title { font-size: 28pt; font-weight: 700; color: #1a202c; margin-bottom: 5px; }
+    .invoice-number { font-size: 11pt; color: #4a5568; margin-bottom: 10px; }
+    .invoice-dates { font-size: 9pt; color: #4a5568; text-align: right; }
+    .invoice-dates div { margin-bottom: 3px; }
+    .invoice-dates strong { color: #2d3748; font-weight: 600; display: inline-block; width: 90px; }
+    .header-divider { border: none; border-top: 2px solid #2d3748; margin: 15px 0 20px 0; }
+    
+    /* From/To */
+    .from-to-section { display: flex; justify-content: space-between; margin-bottom: 25px; }
+    .from-section, .to-section { flex: 1; }
+    .to-section { text-align: right; padding-left: 30px; }
+    .section-label { font-size: 10pt; font-weight: 700; text-transform: uppercase; color: #2d3748; margin-bottom: 8px; }
+    .address-block { font-size: 9pt; line-height: 1.6; color: #4a5568; }
+    .address-block .company-name { font-weight: 700; font-size: 11pt; color: #1a202c; margin-bottom: 4px; }
+    
+    /* Table */
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .items-table thead { background-color: #2d3748; color: white; }
+    .items-table th { padding: 12px 10px; text-align: left; font-weight: 600; font-size: 8pt; text-transform: uppercase; }
+    .items-table th:last-child, .items-table td:last-child { text-align: right; }
+    .items-table tbody tr { border-bottom: 1px solid #e2e8f0; }
+    .items-table tbody tr:nth-child(even) { background-color: #f7fafc; }
+    .items-table td { padding: 10px; font-size: 9pt; color: #2d3748; vertical-align: top; }
+    .item-number { width: 35px; font-weight: 600; color: #718096; }
+    .item-name { font-weight: 600; color: #1a202c; margin-bottom: 2px; }
+    .item-category { font-size: 7pt; color: #718096; font-style: italic; }
+    .item-description { color: #4a5568; font-size: 8pt; }
+    
+    /* Totals */
+    .totals-section { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+    .totals-table { width: 280px; border-collapse: collapse; }
+    .totals-table tr { border-bottom: 1px solid #e2e8f0; }
+    .totals-table tr:last-child { border-top: 2px solid #2d3748; border-bottom: none; }
+    .totals-label { padding: 8px 10px; text-align: left; font-size: 9pt; color: #4a5568; }
+    .totals-value { padding: 8px 10px; text-align: right; font-size: 9pt; color: #2d3748; font-weight: 600; }
+    .totals-table tr:last-child .totals-label, .totals-table tr:last-child .totals-value {
+      font-size: 11pt; font-weight: 700; color: #1a202c; padding: 10px;
     }
-
-    /* Footer */
-    .footer {
-      margin-top: 30px;
-      padding-top: 15px;
-      border-top: 2px solid #e2e8f0;
-      text-align: center;
-      font-size: 10pt;
-      color: #1a202c;
-      font-weight: 500;
-      page-break-inside: avoid;
-    }
-
-    /* Page Break Control */
-    .page-break-before {
-      page-break-before: always;
-    }
-
-    .page-break-after {
-      page-break-after: always;
-    }
-
-    .no-break {
-      page-break-inside: avoid;
-    }
-
-    /* Print Specific */
+    
+    /* Info boxes */
+    .info-box { background: #f7fafc; border-left: 3px solid #4299e1; padding: 12px; margin-bottom: 12px; }
+    .info-box-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; color: #2d3748; margin-bottom: 6px; }
+    .info-box-content { font-size: 8.5pt; line-height: 1.6; color: #4a5568; }
+    .info-box-content div { margin-bottom: 3px; }
+    .info-box-content strong { color: #2d3748; font-weight: 600; }
+    
+    .footer { text-align: center; padding-top: 15px; margin-top: 20px; border-top: 1px solid #e2e8f0; font-size: 9pt; color: #718096; font-style: italic; }
+    
     @media print {
-      body {
-        margin: 0;
-        padding: 0;
+      body { margin: 0; padding: 0; background: white; }
+      .invoice-container { 
+        width: 100%; 
+        box-shadow: none; 
+        padding: 15mm;
+        page-break-after: always;
       }
-
-      .invoice-container {
-        page-break-after: avoid;
+      .watermark-overlay { 
+        position: fixed;
+        opacity: 0.12;
       }
     }
   </style>
 </head>
 <body>
   <div class="invoice-container">
-    <!-- Header -->
+    <div class="watermark-overlay"><img src="${watermarkBase64}" alt=""></div>
+    
     <div class="header">
-      <div class="company-info">
-        <div class="company-name">Strategic Knights</div>
-        <div class="company-details">
-          Coimbatore, Tamil Nadu, India<br>
-          Phone: 8248821426<br>
-          Email: contact@strategicknights.com
+      <div class="header-top">
+        <div class="logo-section"><img src="${logoBase64}" alt="Logo"></div>
+        <div class="invoice-title-section">
+          <div class="invoice-title">INVOICE</div>
+          <div class="invoice-number">#${invoice.invoiceNumber}</div>
+          <div class="invoice-dates">
+            <div><strong>Invoice Date:</strong> ${formatDate(invoice.invoiceDate)}</div>
+            <div><strong>Due Date:</strong> ${formatDate(invoice.dueDate)}</div>
+            <div><strong>Payment Terms:</strong> ${invoice.paymentTerms}</div>
+            ${invoice.purchaseOrderNumber ? `<div><strong>PO Number:</strong> ${invoice.purchaseOrderNumber}</div>` : ''}
+          </div>
         </div>
       </div>
-      <div class="invoice-title-section">
-        <div class="invoice-label">INVOICE</div>
-        <div class="invoice-number">${invoice.invoiceNumber}</div>
-      </div>
+      <hr class="header-divider">
     </div>
-
-    <!-- Info Section -->
-    <div class="info-section">
-      <div class="info-block">
-        <div class="info-title">Invoice Details</div>
-        <div class="info-content">
-          <div class="info-row">
-            <span class="info-label">Invoice Date:</span>
-            <span>${formatDate(invoice.invoiceDate)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Due Date:</span>
-            <span>${formatDate(invoice.dueDate)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Payment Terms:</span>
-            <span>${invoice.paymentTerms}</span>
-          </div>
-          ${invoice.purchaseOrderNumber ? `
-          <div class="info-row">
-            <span class="info-label">PO Number:</span>
-            <span>${invoice.purchaseOrderNumber}</span>
-          </div>
-          ` : ''}
+    
+    <div class="from-to-section">
+      <div class="from-section">
+        <div class="section-label">From</div>
+        <div class="address-block">
+          <div>${company.address.street}</div>
+          <div>${company.address.city}, ${company.address.state}</div>
+          <div>${company.address.country || 'India'}</div>
+          <div style="margin-top: 8px;"><strong>Phone:</strong> ${company.contact.phone}</div>
+          <div><strong>Email:</strong> ${company.contact.email}</div>
+          ${company.contact.website ? `<div><strong>Web:</strong> ${company.contact.website}</div>` : ''}
+          ${company.taxInfo.gstin ? `<div style="margin-top: 6px;"><strong>GSTIN:</strong> ${company.taxInfo.gstin}</div>` : ''}
+          ${company.taxInfo.pan ? `<div><strong>PAN:</strong> ${company.taxInfo.pan}</div>` : ''}
         </div>
       </div>
-
-      <div class="info-block">
-        <div class="info-title">Bill To</div>
-        <div class="info-content">
-          <div class="client-name">${client.companyName}</div>
-          <div>${client.contactPerson?.name || ''}</div>
+      <div class="to-section">
+        <div class="section-label">Bill To</div>
+        <div class="address-block">
+          <div class="company-name">${client.companyName || client.name}</div>
+          ${client.companyName ? `<div>Attn: ${client.name}</div>` : ''}
           <div>${client.address.street}</div>
           <div>${client.address.city}, ${client.address.state} ${client.address.pincode}</div>
-          <div>${client.address.country}</div>
-          <div style="margin-top: 8px;">
-            <div>Phone: ${client.contact.phone}</div>
-            <div>Email: ${client.contact.email}</div>
-          </div>
-          ${client.taxInfo?.gstin ? `<div style="margin-top: 6px;">GSTIN: ${client.taxInfo.gstin}</div>` : ''}
+          <div>${client.address.country || 'India'}</div>
+          <div style="margin-top: 8px;"><strong>Phone:</strong> ${client.contact.phone}</div>
+          <div><strong>Email:</strong> ${client.contact.email}</div>
+          ${client.taxInfo?.gstin ? `<div style="margin-top: 6px;"><strong>GSTIN:</strong> ${client.taxInfo.gstin}</div>` : ''}
+          ${client.taxInfo?.pan ? `<div><strong>PAN:</strong> ${client.taxInfo.pan}</div>` : ''}
         </div>
       </div>
     </div>
-
-    <!-- Items Table -->
+    
     <table class="items-table">
       <thead>
         <tr>
-          <th style="width: 35px;">#</th>
-          <th style="width: 28%;">Item</th>
-          <th style="width: 35%;">Description</th>
-          <th style="width: 10%; text-align: center;">Qty/Hrs</th>
-          <th style="width: 13%; text-align: right;">Rate</th>
-          <th style="width: 14%; text-align: right;">Amount</th>
+          <th style="width:35px;">#</th>
+          <th>Description</th>
+          <th style="width:80px;text-align:center;">Qty</th>
+          <th style="width:90px;text-align:right;">Rate</th>
+          <th style="width:100px;text-align:right;">Amount</th>
         </tr>
       </thead>
       <tbody>
@@ -444,70 +224,38 @@ export const generateInvoicePDF = (invoice, company, client) => {
           <tr>
             <td class="item-number">${index + 1}</td>
             <td>
-              <div class="item-name">${item.service}</div>
-              <div class="item-category">${item.category}</div>
+              <div class="item-name">${item.description}</div>
+              <div class="item-category">${item.category} • ${item.billingType}</div>
+              ${item.itemDescription ? `<div class="item-description">${item.itemDescription}</div>` : ''}
             </td>
-            <td class="item-description">${item.description || '-'}</td>
-            <td style="text-align: center;">${item.quantity}</td>
-            <td style="text-align: right;">${formatCurrency(item.rate)}</td>
-            <td style="text-align: right;"><strong>${formatCurrency(item.amount)}</strong></td>
+            <td style="text-align:center;">${item.quantity}</td>
+            <td style="text-align:right;">${formatCurrency(item.rate)}</td>
+            <td style="text-align:right;font-weight:600;">${formatCurrency(item.amount)}</td>
           </tr>
         `).join('')}
       </tbody>
     </table>
-
-    <!-- Totals -->
+    
     <div class="totals-section">
       <table class="totals-table">
-        <tr>
-          <td class="totals-label">Subtotal:</td>
-          <td class="totals-value">${formatCurrency(invoice.subtotal)}</td>
-        </tr>
-        ${invoice.discount > 0 ? `
-        <tr>
-          <td class="totals-label">Discount ${invoice.discountType === 'percentage' ? `(${invoice.discount}%)` : ''}:</td>
-          <td class="totals-value">- ${formatCurrency(
-            invoice.discountType === 'percentage' 
-              ? (invoice.subtotal * invoice.discount / 100) 
-              : invoice.discount
-          )}</td>
-        </tr>
-        ` : ''}
-        <tr>
-          <td class="totals-label">Tax Rate:</td>
-          <td class="totals-value">${invoice.taxRate}%</td>
-        </tr>
-        <tr>
-          <td class="totals-label">Tax (GST):</td>
-          <td class="totals-value">${formatCurrency(invoice.taxAmount)}</td>
-        </tr>
-        <tr class="total-row">
-          <td class="totals-label">TOTAL:</td>
-          <td class="totals-value">${formatCurrency(invoice.total)}</td>
-        </tr>
+        <tr><td class="totals-label">Subtotal:</td><td class="totals-value">${formatCurrency(invoice.subtotal)}</td></tr>
+        ${invoice.discount > 0 ? `<tr><td class="totals-label">Discount ${invoice.discountType === 'percentage' ? `(${invoice.discount}%)` : ''}:</td><td class="totals-value">- ${formatCurrency(invoice.discountType === 'percentage' ? (invoice.subtotal * invoice.discount / 100) : invoice.discount)}</td></tr>` : ''}
+        ${invoice.taxRate > 0 ? `<tr><td class="totals-label">Tax (${invoice.taxRate}%):</td><td class="totals-value">${formatCurrency(invoice.tax)}</td></tr>` : ''}
+        <tr><td class="totals-label">Total:</td><td class="totals-value">${formatCurrency(invoice.total)}</td></tr>
       </table>
     </div>
-
-    <!-- Payment Status -->
-    ${invoice.paymentStatus !== 'Unpaid' ? `
-    <div class="payment-status-box ${invoice.paymentStatus === 'Paid' ? '' : 'partial'}">
-      <div class="payment-status-title">Payment Status: ${invoice.paymentStatus}</div>
-      <div class="payment-status-content">
-        <div class="payment-row">
-          <span class="payment-label">Paid Amount:</span>
-          <span class="payment-value">${formatCurrency(invoice.paidAmount || 0)}</span>
-        </div>
-        ${invoice.balanceAmount > 0 ? `
-        <div class="payment-row">
-          <span class="payment-label">Balance Due:</span>
-          <span class="payment-value">${formatCurrency(invoice.balanceAmount)}</span>
-        </div>
-        ` : ''}
+    
+    ${invoice.discount > 0 && invoice.discountDescription ? `
+    <div class="info-box">
+      <div class="info-box-title">Discount Information</div>
+      <div class="info-box-content">
+        <div><strong>Discount Applied:</strong> ${invoice.discountType === 'percentage' ? `${invoice.discount}%` : formatCurrency(invoice.discount)}</div>
+        <div><strong>Description:</strong> ${invoice.discountDescription}</div>
+        <div><strong>Amount Saved:</strong> ${formatCurrency(invoice.discountType === 'percentage' ? (invoice.subtotal * invoice.discount / 100) : invoice.discount)}</div>
       </div>
-    </div>
-    ` : ''}
-
-    ${company?.bankDetails && (company.bankDetails.accountNumber || company.bankDetails.upiId) ? `
+    </div>` : ''}
+    
+    ${company.bankDetails && (company.bankDetails.accountNumber || company.bankDetails.upiId) ? `
     <div class="info-box">
       <div class="info-box-title">Payment Information</div>
       <div class="info-box-content">
@@ -518,44 +266,21 @@ export const generateInvoicePDF = (invoice, company, client) => {
         ${company.bankDetails.branch ? `<div><strong>Branch:</strong> ${company.bankDetails.branch}</div>` : ''}
         ${company.bankDetails.upiId ? `<div><strong>UPI ID:</strong> ${company.bankDetails.upiId}</div>` : ''}
       </div>
-    </div>
-    ` : ''}
-
-    ${invoice.notes ? `
-    <div class="info-box">
-      <div class="info-box-title">Notes</div>
-      <div class="info-box-content">
-        ${invoice.notes}
-      </div>
-    </div>
-    ` : ''}
-
-    ${company?.termsAndConditions ? `
-    <div class="info-box">
-      <div class="info-box-title">Terms & Conditions</div>
-      <div class="info-box-content">
-        ${company.termsAndConditions}
-      </div>
-    </div>
-    ` : ''}
-
-    <!-- Footer -->
-    <div class="footer">
-      Thank you for your business!
-    </div>
+    </div>` : ''}
+    
+    ${invoice.notes ? `<div class="info-box"><div class="info-box-title">Notes</div><div class="info-box-content">${invoice.notes}</div></div>` : ''}
+    ${company.termsAndConditions ? `<div class="info-box"><div class="info-box-title">Terms & Conditions</div><div class="info-box-content">${company.termsAndConditions}</div></div>` : ''}
+    
+    <div class="footer">${invoice.thankYouMessage || 'Thank you for your business!'}</div>
   </div>
-
-  <script>
-    window.onload = function() {
-      setTimeout(() => {
-        window.print();
-      }, 250);
-    }
-  </script>
 </body>
-</html>
-  `;
+</html>`;
 
   printWindow.document.write(html);
   printWindow.document.close();
+  
+  // Wait for images to load before printing
+  printWindow.onload = function() { 
+    setTimeout(() => printWindow.print(), 1000); 
+  };
 };
