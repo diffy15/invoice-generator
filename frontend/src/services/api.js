@@ -1,16 +1,14 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: true, // safe even if not used now
 });
-
-export default api;
 
 /* -------------------- COMPANY -------------------- */
 export const companyAPI = {
@@ -23,18 +21,15 @@ export const companyAPI = {
 export const categoryAPI = {
   getAllCategories: () => api.get('/categories'),
   createCategory: (data) => api.post('/categories', data),
-  updateCategory: (oldName, data) =>
-    api.put(`/categories/${encodeURIComponent(oldName)}`, data),
-  deleteCategory: (name) =>
-    api.delete(`/categories/${encodeURIComponent(name)}`),
+  updateCategory: (oldName, data) => api.put(`/categories/${encodeURIComponent(oldName)}`, data),
+  deleteCategory: (name) => api.delete(`/categories/${encodeURIComponent(name)}`),
 };
 
 /* -------------------- PRODUCTS -------------------- */
 export const productAPI = {
   getAllProducts: (params) => api.get('/products', { params }),
   getProductById: (id) => api.get(`/products/${id}`),
-  getProductsByCategory: (category) =>
-    api.get(`/products/category/${category}`),
+  getProductsByCategory: (category) => api.get(`/products/category/${category}`),
   createProduct: (data) => api.post('/products', data),
   updateProduct: (id, data) => api.put(`/products/${id}`, data),
   toggleProductStatus: (id) => api.patch(`/products/${id}/toggle`),
@@ -68,3 +63,17 @@ export const invoiceAPI = {
     api.patch(`/invoices/${id}/milestone/${itemIndex}/${milestoneIndex}`, data),
   deleteInvoice: (id) => api.delete(`/invoices/${id}`),
 };
+
+// Quotation APIs
+export const quotationAPI = {
+  getAllQuotations: (params) => api.get('/quotations', { params }),
+  getQuotationById: (id) => api.get(`/quotations/${id}`),
+  getQuotationStats: () => api.get('/quotations/stats'),
+  createQuotation: (data) => api.post('/quotations', data),
+  updateQuotation: (id, data) => api.put(`/quotations/${id}`, data),
+  deleteQuotation: (id) => api.delete(`/quotations/${id}`),
+  convertToInvoice: (id, data) => api.post(`/quotations/${id}/convert-to-invoice`, data),
+  updateStatus: (id, status) => api.put(`/quotations/${id}/status`, { status }),
+};
+
+export default api;

@@ -5,6 +5,8 @@ import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import InvoiceList from './pages/InvoiceList';
 import CreateInvoice from './pages/CreateInvoice';
+import QuotationList from './pages/QuotationList';
+import CreateQuotation from './pages/CreateQuotation';
 import ClientList from './pages/ClientList';
 import ProductList from './pages/ProductList';
 import CompanySettings from './pages/CompanySettings';
@@ -18,6 +20,9 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/quotations" element={<QuotationList />} />
+            <Route path="/quotations/new" element={<CreateQuotation />} />
+            <Route path="/quotations/edit/:id" element={<CreateQuotation />} />
             <Route path="/invoices" element={<InvoiceList />} />
             <Route path="/invoices/new" element={<CreateInvoice />} />
             <Route path="/invoices/edit/:id" element={<CreateInvoice />} />

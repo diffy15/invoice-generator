@@ -41,6 +41,14 @@ const companySchema = new mongoose.Schema({
     default: 500000,
     min: 0
   },
+  logo: {
+    type: String,
+    default: ''
+  },
+  watermark: {
+    type: String,
+    default: ''
+  },
   isActive: {
     type: Boolean,
     default: true

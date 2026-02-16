@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { invoiceAPI, clientAPI, productAPI, companyAPI, categoryAPI } from '../services/api';
-import { calculateInvoiceTotals, formatCurrency } from '../utils/helpers';
+import { quotationAPI, clientAPI, productAPI, companyAPI, categoryAPI } from '../services/api';
+import { formatCurrency } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import { FiPlus, FiTrash2, FiSave } from 'react-icons/fi';
 
-const CreateInvoice = () => {
+const CreateQuotation = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [company, setCompany] = useState(null);
@@ -16,10 +16,9 @@ const CreateInvoice = () => {
 
   const [formData, setFormData] = useState({
     client: '',
-    invoiceDate: new Date().toISOString().split('T')[0],
-    dueDate: '',
-    paymentTerms: 'Net 30',
-    purchaseOrderNumber: '',
+    quotationDate: new Date().toISOString().split('T')[0],
+    validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'Draft',
     items: [{
       category: '',
       service: '',
@@ -31,10 +30,9 @@ const CreateInvoice = () => {
     }],
     discount: 0,
     discountType: 'percentage',
-    taxRate: 0, // Will be set from company settings
+    taxRate: 18,
     notes: '',
-    discountDescription: '',
-    thankYouMessage: 'Thank you for your business!'
+    discountDescription: ''
   });
 
   useEffect(() => {
@@ -62,37 +60,35 @@ const CreateInvoice = () => {
 
       const companyData = companyRes.data.data;
       
-      // If editing, load existing invoice
+      // If editing, load existing quotation
       if (id) {
-        const invoiceRes = await invoiceAPI.getInvoiceById(id);
-        const invoice = invoiceRes.data.data;
+        const quotationRes = await quotationAPI.getQuotationById(id);
+        const quotation = quotationRes.data.data;
         setFormData({
-          client: invoice.client._id,
-          invoiceDate: invoice.invoiceDate.split('T')[0],
-          dueDate: invoice.dueDate.split('T')[0],
-          paymentTerms: invoice.paymentTerms,
-          purchaseOrderNumber: invoice.purchaseOrderNumber || '',
-          items: invoice.items,
-          discount: invoice.discount || 0,
-          discountType: invoice.discountType || 'percentage',
-          taxRate: invoice.taxRate || 0,
-          notes: invoice.notes || '',
-          discountDescription: invoice.discountDescription || '',
-          thankYouMessage: invoice.thankYouMessage || 'Thank you for your business!'
+          client: quotation.client._id,
+          quotationDate: quotation.quotationDate.split('T')[0],
+          validUntil: quotation.validUntil.split('T')[0],
+          status: quotation.status,
+          items: quotation.items,
+          discount: quotation.discount || 0,
+          discountType: quotation.discountType || 'percentage',
+          taxRate: quotation.taxRate || 0,
+          notes: quotation.notes || '',
+          discountDescription: quotation.discountDescription || ''
         });
       } else {
-        // Set default due date (30 days from now) for new invoices
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30);
+        // Set default validUntil date (30 days from now) for new quotations
+        const validUntil = new Date();
+        validUntil.setDate(validUntil.getDate() + 30);
         
         // Set default tax rate based on company GST settings
         const defaultTaxRate = companyData?.taxInfo?.gstEnabled ? 18 : 0;
         
         setFormData(prev => ({
-          ...prev,
-          dueDate: dueDate.toISOString().split('T')[0],
-          taxRate: defaultTaxRate
-        }));
+        ...prev,
+        validUntil: validUntil.toISOString().split('T')[0],
+        taxRate: defaultTaxRate
+      }));
       }
     } catch (error) {
       toast.error('Failed to load data');
@@ -155,12 +151,6 @@ const CreateInvoice = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!company) {
-      toast.error('Please set up company details first!');
-      navigate('/company');
-      return;
-    }
-
     if (!formData.client) {
       toast.error('Please select a client');
       return;
@@ -171,62 +161,64 @@ const CreateInvoice = () => {
       return;
     }
 
+    // Calculate totals
+    const subtotal = formData.items.reduce((sum, item) => sum + (parseFloat(item.quantity) * parseFloat(item.rate)), 0);
+    const discountAmount = formData.discountType === 'percentage'
+      ? (subtotal * parseFloat(formData.discount)) / 100
+      : parseFloat(formData.discount);
+    const afterDiscount = subtotal - discountAmount;
+    const tax = (afterDiscount * parseFloat(formData.taxRate)) / 100;
+    const total = afterDiscount + tax;
+
     try {
-      const invoiceData = {
-        ...formData,
-        company: company._id,
-        items: formData.items.map(item => {
-          const baseItem = {
-            category: item.category,
-            service: item.service,
-            description: item.description,
-            billingType: item.billingType,
-            amount: parseFloat(item.quantity) * parseFloat(item.rate)
-          };
-
-          // For Product billing type, add productDetails
-          if (item.billingType === 'Product') {
-            baseItem.productDetails = {
-              productName: item.service,
-              totalValue: parseFloat(item.quantity) * parseFloat(item.rate),
-              paymentType: 'Full',
-              amountForThisInvoice: parseFloat(item.quantity) * parseFloat(item.rate)
-            };
-            // Still include quantity and rate for consistency
-            baseItem.quantity = parseFloat(item.quantity);
-            baseItem.rate = parseFloat(item.rate);
-          } else {
-            // For Hourly/Fixed/Retainer, use quantity and rate
-            baseItem.quantity = parseFloat(item.quantity);
-            baseItem.rate = parseFloat(item.rate);
-          }
-
-          return baseItem;
-        }),
-        discount: parseFloat(formData.discount),
-        taxRate: parseFloat(formData.taxRate)
+      const quotationData = {
+        client: formData.client,
+        quotationDate: formData.quotationDate,
+        validUntil: formData.validUntil,
+        status: formData.status,
+        items: formData.items.map(item => ({
+          category: item.category,
+          service: item.service,
+          description: item.description,
+          billingType: item.billingType,
+          quantity: parseFloat(item.quantity),
+          rate: parseFloat(item.rate),
+          amount: parseFloat(item.quantity) * parseFloat(item.rate)
+        })),
+        subtotal,
+        discount: parseFloat(formData.discount) || 0,
+        discountType: formData.discountType,
+        discountDescription: formData.discountDescription || '',
+        taxRate: parseFloat(formData.taxRate),
+        tax,
+        total,
+        notes: formData.notes || ''
       };
 
       if (id) {
-        await invoiceAPI.updateInvoice(id, invoiceData);
-        toast.success('Invoice updated successfully!');
+        await quotationAPI.updateQuotation(id, quotationData);
+        toast.success('Quotation updated successfully!');
       } else {
-        await invoiceAPI.createInvoice(invoiceData);
-        toast.success('Invoice created successfully!');
+        await quotationAPI.createQuotation(quotationData);
+        toast.success('Quotation created successfully!');
       }
-      navigate('/invoices');
+      navigate('/quotations');
     } catch (error) {
-      toast.error(error.response?.data?.message || `Failed to ${id ? 'update' : 'create'} invoice`);
-      console.error(error);
+      toast.error(error.response?.data?.message || `Failed to ${id ? 'update' : 'create'} quotation`);
+      console.error('Error:', error.response?.data);
     }
   };
 
-  const totals = calculateInvoiceTotals(
-    formData.items,
-    formData.discount,
-    formData.discountType,
-    formData.taxRate
-  );
+  // Calculate totals for display
+  const subtotal = formData.items.reduce((sum, item) => sum + (parseFloat(item.quantity || 0) * parseFloat(item.rate || 0)), 0);
+  const discountAmount = formData.discountType === 'percentage'
+    ? (subtotal * parseFloat(formData.discount || 0)) / 100
+    : parseFloat(formData.discount || 0);
+  const afterDiscount = subtotal - discountAmount;
+  const tax = (afterDiscount * parseFloat(formData.taxRate || 0)) / 100;
+  const total = afterDiscount + tax;
+
+  const totals = { subtotal, discount: discountAmount, tax, total };
 
   if (loading) {
     return (
@@ -240,14 +232,14 @@ const CreateInvoice = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">{id ? 'Edit Invoice' : 'Create New Invoice'}</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{id ? 'Edit Quotation' : 'Create New Quotation'}</h1>
         <p className="text-gray-600 mt-1">Generate a new invoice for your client</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Details */}
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Invoice Details</h2>
+          <h2 className="text-xl font-semibold mb-4">Quotation Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -271,30 +263,30 @@ const CreateInvoice = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payment Terms
+                Status
               </label>
               <select
-                name="paymentTerms"
-                value={formData.paymentTerms}
+                name="status"
+                value={formData.status}
                 onChange={handleInputChange}
                 className="input-field"
               >
-                <option value="Net 15">Net 15</option>
-                <option value="Net 30">Net 30</option>
-                <option value="Net 45">Net 45</option>
-                <option value="Net 60">Net 60</option>
-                <option value="Due on Receipt">Due on Receipt</option>
+                <option value="Draft">Draft</option>
+                <option value="Sent">Sent</option>
+                <option value="Accepted">Accepted</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Expired">Expired</option>
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Invoice Date *
+                Quotation Date *
               </label>
               <input
                 type="date"
-                name="invoiceDate"
-                value={formData.invoiceDate}
+                name="quotationDate"
+                value={formData.quotationDate}
                 onChange={handleInputChange}
                 required
                 className="input-field"
@@ -303,28 +295,14 @@ const CreateInvoice = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Due Date *
+                Valid Until *
               </label>
               <input
                 type="date"
-                name="dueDate"
-                value={formData.dueDate}
+                name="validUntil"
+                value={formData.validUntil}
                 onChange={handleInputChange}
                 required
-                className="input-field"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Purchase Order Number (Optional)
-              </label>
-              <input
-                type="text"
-                name="purchaseOrderNumber"
-                value={formData.purchaseOrderNumber}
-                onChange={handleInputChange}
-                placeholder="PO-2026-001"
                 className="input-field"
               />
             </div>
@@ -448,11 +426,12 @@ const CreateInvoice = () => {
                     </label>
                     <input
                       type="number"
-                      value={item.rate}
+                      value={item.rate === 0 ? '' : item.rate}
                       onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
                       min="0"
                       step="0.01"
                       required
+                      placeholder="Enter rate"
                       className="input-field"
                     />
                   </div>
@@ -640,7 +619,7 @@ const CreateInvoice = () => {
             className="btn-primary flex items-center space-x-2"
           >
             <FiSave />
-            <span>{id ? 'Update Invoice' : 'Create Invoice'}</span>
+            <span>{id ? 'Update Quotation' : 'Create Quotation'}</span>
           </button>
         </div>
       </form>
@@ -648,4 +627,4 @@ const CreateInvoice = () => {
   );
 };
 
-export default CreateInvoice;
+export default CreateQuotation;

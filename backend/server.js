@@ -10,8 +10,12 @@ const clientRoutes = require('./routes/clientRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const categoryRoutes = require('./routes/categories');
+const quotationRoutes = require('./routes/quotations');
 
 const app = express();
+
+/* -------------------- DATABASE -------------------- */
+
 
 /* -------------------- CORS -------------------- */
 const allowedOrigins = [
@@ -32,8 +36,8 @@ app.use(cors({
 }));
 
 /* -------------------- MIDDLEWARE -------------------- */
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 /* -------------------- ROUTES -------------------- */
 app.use('/api/products', productRoutes);
@@ -41,6 +45,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/quotations', quotationRoutes);
 
 /* -------------------- HEALTH CHECK -------------------- */
 app.get('/', (req, res) => {
@@ -57,16 +62,9 @@ app.use(errorHandler);
 
 /* -------------------- SERVER -------------------- */
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
-
-  try {
-    await connectDB();
-    console.log('MongoDB connected');
-  } catch (err) {
-    console.error('MongoDB connection failed:', err.message);
-    process.exit(1);
-  }
 });
+
+connectDB();

@@ -3,13 +3,6 @@ import { companyAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { FiSave, FiBriefcase, FiCheck } from 'react-icons/fi';
 
-// These are your fixed company images. Place your actual files here:
-//   src/assets/logo.png
-//   src/assets/watermark.png
-// Then update the import paths below to match.
-import logo from '../assets/logo.png';
-import watermark from '../assets/watermark.png';
-
 const CompanySettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,6 +38,8 @@ const CompanySettings = () => {
     },
     termsAndConditions: 'Payment is due within 30 days of invoice date.',
     monthlyTarget: 500000,
+    logo: '',
+    watermark: '',
     isActive: true
   });
 
@@ -88,6 +83,34 @@ const CompanySettings = () => {
     } else {
       setFormData(prev => ({ ...prev, [e.target.name]: value }));
     }
+  };
+
+  const handleFileUpload = (e, fieldName) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size should be less than 2MB');
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({
+        ...prev,
+        [fieldName]: reader.result
+      }));
+      toast.success(`${fieldName === 'logo' ? 'Logo' : 'Watermark'} uploaded successfully!`);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e) => {
@@ -154,62 +177,118 @@ const CompanySettings = () => {
           </div>
         </div>
 
-        {/* Logo & Watermark — static preview, no upload needed */}
+        {/* Logo & Watermark - Dynamic Upload */}
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Logo & Watermark</h2>
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
-              <FiCheck className="text-xs" /> Static assets
-            </span>
-          </div>
+          <h2 className="text-xl font-semibold mb-4">Logo & Watermark</h2>
           <p className="text-sm text-gray-500 mb-5">
-            These are loaded directly from <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">src/assets/</code>.
-            To change them, replace the files in that folder — no code changes needed.
+            Upload your company logo and watermark. These will appear on all invoices and quotations.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Logo preview */}
+            {/* Logo Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Company Logo</label>
-              <p className="text-xs text-gray-400 mb-3">Used in the header of every generated invoice.</p>
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div
-                  className="flex items-center justify-center"
-                  style={{
-                    minHeight: '140px',
-                    backgroundImage: 'linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%)',
-                    backgroundSize: '20px 20px',
-                    backgroundPosition: '0 0,0 10px,10px -10px,-10px 0'
-                  }}
-                >
-                  <img src={logo} alt="Company Logo" className="max-h-36 max-w-full object-contain p-3" />
-                </div>
-                <div className="px-3 py-2 bg-white border-t border-gray-200">
-                  <p className="text-xs text-gray-500">File: <code className="bg-gray-100 px-1 rounded">src/assets/logo.png</code></p>
-                </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Company Logo
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Used in the header of invoices. Recommended: 200x60px PNG with transparent background.
+              </p>
+              
+              {/* Preview */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 mb-3 bg-gray-50">
+                {formData.logo ? (
+                  <div className="relative">
+                    <img
+                      src={formData.logo}
+                      alt="Logo Preview"
+                      className="max-h-24 mx-auto object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, logo: '' }))}
+                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-400 py-4">
+                    <svg className="mx-auto h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm">No logo uploaded</p>
+                  </div>
+                )}
               </div>
+              
+              {/* Upload Button */}
+              <label className="btn-primary cursor-pointer inline-flex items-center justify-center w-full">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Upload Logo
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleFileUpload(e, 'logo')}
+                  className="hidden"
+                />
+              </label>
             </div>
 
-            {/* Watermark preview */}
+            {/* Watermark Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Watermark</label>
-              <p className="text-xs text-gray-400 mb-3">Printed faintly across the invoice body for branding.</p>
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div
-                  className="flex items-center justify-center"
-                  style={{
-                    minHeight: '140px',
-                    backgroundImage: 'linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%)',
-                    backgroundSize: '20px 20px',
-                    backgroundPosition: '0 0,0 10px,10px -10px,-10px 0'
-                  }}
-                >
-                  <img src={watermark} alt="Watermark" className="max-h-36 max-w-full object-contain p-3" />
-                </div>
-                <div className="px-3 py-2 bg-white border-t border-gray-200">
-                  <p className="text-xs text-gray-500">File: <code className="bg-gray-100 px-1 rounded">src/assets/watermark.png</code></p>
-                </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Watermark
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Appears faintly in the background of invoices. Recommended: PNG with transparency.
+              </p>
+              
+              {/* Preview */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 mb-3 bg-gray-50">
+                {formData.watermark ? (
+                  <div className="relative">
+                    <img
+                      src={formData.watermark}
+                      alt="Watermark Preview"
+                      className="max-h-24 mx-auto object-contain opacity-30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, watermark: '' }))}
+                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-400 py-4">
+                    <svg className="mx-auto h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm">No watermark uploaded</p>
+                  </div>
+                )}
               </div>
+              
+              {/* Upload Button */}
+              <label className="btn-primary cursor-pointer inline-flex items-center justify-center w-full">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Upload Watermark
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleFileUpload(e, 'watermark')}
+                  className="hidden"
+                />
+              </label>
             </div>
           </div>
         </div>

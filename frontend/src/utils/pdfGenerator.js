@@ -1,35 +1,18 @@
 import { formatCurrency, formatDate } from './helpers';
-import logo from '../assets/logo.png';
-import watermark from '../assets/watermark.png';
 
-// Helper function to convert image to base64
-const getBase64Image = async (imgPath) => {
-  try {
-    const response = await fetch(imgPath);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error('Error loading image:', error);
-    return imgPath; // Fallback to original path
-  }
-};
-
-export const generateInvoicePDF = async (invoice, company, client) => {
-  // Convert images to base64
-  const watermarkBase64 = await getBase64Image(watermark);
-  const logoBase64 = await getBase64Image(logo);
-  
+export const generateInvoicePDF = (invoice, company, client) => {
   const printWindow = window.open('', '_blank');
   
   if (!printWindow) {
     alert('Please allow popups to generate PDF');
     return;
   }
+
+  // Use company's uploaded logo/watermark or show company name as fallback
+  const logo = company.logo;
+  const watermark = company.watermark;
+  const hasLogo = logo && logo.trim() !== '';
+  const hasWatermark = watermark && watermark.trim() !== '';
 
   const html = `
 <!DOCTYPE html>
@@ -59,10 +42,9 @@ export const generateInvoicePDF = async (invoice, company, client) => {
       background: white;
       padding: 15mm;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      overflow: hidden;
     }
     
-    /* Watermark - SHOWS THROUGH CONTENT */
+    /* Watermark - Fixed for both screen and print */
     .watermark-overlay {
       position: fixed;
       top: 50%;
@@ -72,15 +54,16 @@ export const generateInvoicePDF = async (invoice, company, client) => {
       max-width: 500px;
       opacity: 0.20;
       pointer-events: none;
-      z-index: 0;
+      z-index: 1;
     }
     .watermark-overlay img { 
       width: 100%; 
-      height: auto; 
+      height: auto;
       display: block;
     }
+    .invoice-container > *:not(.watermark-overlay) { position: relative; z-index: 2; }
     
-    /* Header - LOGO MOVED DOWN */
+    /* Header - ONLY MODIFIED SECTION */
     .header { margin-bottom: 20px; }
     .header-top {
       display: flex;
@@ -88,12 +71,7 @@ export const generateInvoicePDF = async (invoice, company, client) => {
       align-items: flex-start;
       margin-bottom: 15px;
     }
-    .logo-section img { 
-      height: 95px; 
-      width: auto; 
-      display: block;
-      margin-top: 20px;
-    }
+    .logo-section img { height: 80px; width: auto; max-width: 250px; }
     .invoice-title-section { text-align: right; }
     .invoice-title { font-size: 28pt; font-weight: 700; color: #1a202c; margin-bottom: 5px; }
     .invoice-number { font-size: 11pt; color: #4a5568; margin-bottom: 10px; }
@@ -102,7 +80,7 @@ export const generateInvoicePDF = async (invoice, company, client) => {
     .invoice-dates strong { color: #2d3748; font-weight: 600; display: inline-block; width: 90px; }
     .header-divider { border: none; border-top: 2px solid #2d3748; margin: 15px 0 20px 0; }
     
-    /* From/To */
+    /* From/To - MODIFIED */
     .from-to-section { display: flex; justify-content: space-between; margin-bottom: 25px; }
     .from-section, .to-section { flex: 1; }
     .to-section { text-align: right; padding-left: 30px; }
@@ -119,9 +97,9 @@ export const generateInvoicePDF = async (invoice, company, client) => {
     .items-table tbody tr:nth-child(even) { background-color: #f7fafc; }
     .items-table td { padding: 10px; font-size: 9pt; color: #2d3748; vertical-align: top; }
     .item-number { width: 35px; font-weight: 600; color: #718096; }
-    .item-name { font-weight: 600; color: #1a202c; margin-bottom: 2px; }
+    .item-name { font-weight: 600; color: #1a202c; margin-bottom: 3px; }
+    .item-description { color: #4a5568; font-size: 7.5pt; font-style: italic; margin-bottom: 2px; }
     .item-category { font-size: 7pt; color: #718096; font-style: italic; }
-    .item-description { color: #4a5568; font-size: 8pt; }
     
     /* Totals */
     .totals-section { display: flex; justify-content: flex-end; margin-bottom: 20px; }
@@ -148,23 +126,30 @@ export const generateInvoicePDF = async (invoice, company, client) => {
       .invoice-container { 
         width: 100%; 
         box-shadow: none; 
-        padding: 15mm;
-        page-break-after: always;
+        padding: 15mm; 
+        page-break-after: avoid;
       }
       .watermark-overlay { 
-        position: fixed;
-        opacity: 0.12;
+        position: fixed !important;
+        opacity: 0.15 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
       }
     }
   </style>
 </head>
 <body>
   <div class="invoice-container">
-    <div class="watermark-overlay"><img src="${watermarkBase64}" alt=""></div>
+    ${hasWatermark ? `<div class="watermark-overlay"><img src="${watermark}" alt=""></div>` : ''}
     
     <div class="header">
       <div class="header-top">
-        <div class="logo-section"><img src="${logoBase64}" alt="Logo"></div>
+        <div class="logo-section">
+          ${hasLogo 
+            ? `<img src="${logo}" alt="Logo">` 
+            : `<div style="font-size: 20pt; font-weight: 700; color: #1a202c;">${company.name}</div>`
+          }
+        </div>
         <div class="invoice-title-section">
           <div class="invoice-title">INVOICE</div>
           <div class="invoice-number">#${invoice.invoiceNumber}</div>
@@ -224,9 +209,9 @@ export const generateInvoicePDF = async (invoice, company, client) => {
           <tr>
             <td class="item-number">${index + 1}</td>
             <td>
-              <div class="item-name">${item.description}</div>
+              <div class="item-name">${item.service}</div>
+              <div class="item-description">${item.description}</div>
               <div class="item-category">${item.category} • ${item.billingType}</div>
-              ${item.itemDescription ? `<div class="item-description">${item.itemDescription}</div>` : ''}
             </td>
             <td style="text-align:center;">${item.quantity}</td>
             <td style="text-align:right;">${formatCurrency(item.rate)}</td>
@@ -278,9 +263,5 @@ export const generateInvoicePDF = async (invoice, company, client) => {
 
   printWindow.document.write(html);
   printWindow.document.close();
-  
-  // Wait for images to load before printing
-  printWindow.onload = function() { 
-    setTimeout(() => printWindow.print(), 1000); 
-  };
+  printWindow.onload = function() { setTimeout(() => printWindow.print(), 250); };
 };
