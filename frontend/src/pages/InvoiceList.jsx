@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { invoiceAPI } from '../services/api';
+import { invoiceAPI, companyAPI } from '../services/api';
 import { formatCurrency, formatDate, getStatusColor } from '../utils/helpers';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { generateInvoiceReport } from '../utils/reportGenerator';
 import toast from 'react-hot-toast';
-import { FiPlus, FiEye, FiEdit2, FiTrash2, FiDollarSign, FiFilter, FiPrinter } from 'react-icons/fi';
+import { FiPlus, FiEye, FiEdit2, FiTrash2, FiDollarSign, FiFilter, FiPrinter, FiDownload } from 'react-icons/fi';
 
 const InvoiceList = () => {
   const [invoices, setInvoices] = useState([]);
@@ -14,9 +15,11 @@ const InvoiceList = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [company, setCompany] = useState(null);
 
   useEffect(() => {
     fetchInvoices();
+    fetchCompanyData();
   }, [filterStatus, filterPaymentStatus]);
 
   const fetchInvoices = async () => {
@@ -31,6 +34,15 @@ const InvoiceList = () => {
       toast.error('Failed to load invoices');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCompanyData = async () => {
+    try {
+      const response = await companyAPI.getCompany();
+      setCompany(response.data.data);
+    } catch (error) {
+      console.error('Failed to load company:', error);
     }
   };
 
@@ -99,10 +111,23 @@ const InvoiceList = () => {
     }
   };
 
+  const downloadInvoiceReport = async (format) => {
+    try {
+      toast.loading(`Generating ${format.toUpperCase()} report...`);
+      await generateInvoiceReport(invoices, company, format);
+      toast.dismiss();
+      toast.success(`Invoice report downloaded successfully!`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to generate report');
+      console.error(error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
@@ -110,15 +135,28 @@ const InvoiceList = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
           <p className="text-gray-600 mt-1">Manage and track all your invoices</p>
         </div>
-        <Link to="/invoices/new" className="btn-primary flex items-center space-x-2">
-          <FiPlus />
-          <span>Create Invoice</span>
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadInvoiceReport('pdf')}
+            className="btn-primary flex items-center gap-2"
+          >
+            <FiDownload /> Download PDF
+          </button>
+          <button
+            onClick={() => downloadInvoiceReport('excel')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FiDownload /> Excel
+          </button>
+          <Link to="/invoices/new" className="btn-primary flex items-center gap-2">
+            <FiPlus /> Create Invoice
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

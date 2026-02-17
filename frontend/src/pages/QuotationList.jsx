@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { quotationAPI } from '../services/api';
+import { quotationAPI, companyAPI } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/helpers';
+import { generateQuotationReport } from '../utils/reportGenerator';
 import toast from 'react-hot-toast';
-import { FiPlus, FiEye, FiEdit, FiTrash2, FiFileText, FiCheckCircle, FiClock, FiXCircle, FiRefreshCw } from 'react-icons/fi';
+import { FiPlus, FiEye, FiEdit, FiTrash2, FiFileText, FiCheckCircle, FiClock, FiXCircle, FiRefreshCw, FiDownload } from 'react-icons/fi';
 
 const QuotationList = () => {
   const navigate = useNavigate();
@@ -11,10 +12,12 @@ const QuotationList = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
   const [stats, setStats] = useState(null);
+  const [company, setCompany] = useState(null);
 
   useEffect(() => {
     fetchQuotations();
     fetchStats();
+    fetchCompanyData();
   }, [filterStatus]);
 
   const fetchQuotations = async () => {
@@ -36,6 +39,15 @@ const QuotationList = () => {
       setStats(response.data.data);
     } catch (error) {
       console.error('Failed to load stats:', error);
+    }
+  };
+
+  const fetchCompanyData = async () => {
+    try {
+      const response = await companyAPI.getCompany();
+      setCompany(response.data.data);
+    } catch (error) {
+      console.error('Failed to load company:', error);
     }
   };
 
@@ -95,6 +107,19 @@ const QuotationList = () => {
     }
   };
 
+  const downloadQuotationReport = async (format) => {
+    try {
+      toast.loading(`Generating ${format.toUpperCase()} report...`);
+      await generateQuotationReport(quotations, company, format);
+      toast.dismiss();
+      toast.success(`Quotation report downloaded successfully!`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to generate report');
+      console.error(error);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const badges = {
       Draft: 'bg-gray-100 text-gray-800',
@@ -134,12 +159,26 @@ const QuotationList = () => {
           <h1 className="text-3xl font-bold text-gray-900">Quotations</h1>
           <p className="text-gray-600 mt-1">Manage your quotations and proposals</p>
         </div>
-        <Link
-          to="/quotations/new"
-          className="btn-primary flex items-center gap-2"
-        >
-          <FiPlus /> New Quotation
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadQuotationReport('pdf')}
+            className="btn-primary flex items-center gap-2"
+          >
+            <FiDownload /> Download PDF
+          </button>
+          <button
+            onClick={() => downloadQuotationReport('excel')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FiDownload /> Excel
+          </button>
+          <Link
+            to="/quotations/new"
+            className="btn-primary flex items-center gap-2"
+          >
+            <FiPlus /> New Quotation
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}

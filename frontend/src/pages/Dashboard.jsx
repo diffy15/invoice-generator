@@ -3,401 +3,288 @@ import { Link } from 'react-router-dom';
 import { invoiceAPI, companyAPI } from '../services/api';
 import { formatCurrency } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { 
-  FiFileText, 
-  FiCheckCircle, 
-  FiClock, 
-  FiDollarSign,
-  FiTrendingUp,
-  FiAlertCircle,
-  FiArrowRight,
-  FiUsers,
-  FiPackage
+import {
+  FiFileText, FiCheckCircle, FiClock, FiDollarSign,
+  FiArrowRight, FiDownload, FiTarget
 } from 'react-icons/fi';
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Area,
-  AreaChart
+  BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, Cell
 } from 'recharts';
+import { generateSalesReport } from '../utils/reportGenerator';
+
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Build last-6-months skeleton so chart always has 6 bars even with no data
+const buildSixMonthSkeleton = () => {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    return { month: MONTH_LABELS[d.getMonth()], revenue: 0, paid: 0, unpaid: 0, invoices: 0 };
+  });
+};
 
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [company, setCompany] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  useEffect(() => {
-    fetchStats();
-    fetchCompany();
-  }, []);
-  
-  const fetchStats = async () => {
+  const [stats, setStats]                       = useState(null);
+  const [company, setCompany]                   = useState(null);
+  const [loading, setLoading]                   = useState(true);
+  const [selectedTargetPeriod, setSelectedTargetPeriod] = useState('monthly');
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const fetchAll = async () => {
     try {
-      const response = await invoiceAPI.getInvoiceStats();
-      setStats(response.data.data);
-    } catch (error) {
-      toast.error('Failed to load statistics');
-      console.error(error);
+      const [statsRes, companyRes] = await Promise.all([
+        invoiceAPI.getInvoiceStats(),
+        companyAPI.getCompany()
+      ]);
+      setStats(statsRes.data.data);
+      setCompany(companyRes.data.data);
+    } catch (e) {
+      toast.error('Failed to load dashboard');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCompany = async () => {
+  const getTargetData = () => {
+    if (!stats || !company) return null;
+    const t = company.salesTargets || {};
+    const cur = stats.totalRevenue || 0;
+    const map = {
+      monthly:    { target: t.monthly    || company.monthlyTarget || 500000,  label: 'Monthly',     period: 'This Month'    },
+      quarterly:  { target: t.quarterly  || 1500000,                          label: 'Quarterly',   period: 'This Quarter'  },
+      halfYearly: { target: t.halfYearly || 3000000,                          label: 'Half-Yearly', period: 'This Half'     },
+      annual:     { target: t.annual     || 6000000,                          label: 'Annual',      period: 'This Year'     },
+    };
+    const { target, label, period } = map[selectedTargetPeriod];
+    const pct       = target > 0 ? Math.min((cur / target) * 100, 100) : 0;
+    const remaining = Math.max(target - cur, 0);
+    return { target, label, period, pct, remaining, cur };
+  };
+
+  const downloadSalesReport = async (format) => {
     try {
-      const response = await companyAPI.getCompany();
-      setCompany(response.data.data);
-    } catch (error) {
-      console.error('Failed to load company settings');
+      toast.loading(`Generating ${format.toUpperCase()}…`);
+      await generateSalesReport(stats, company, format);
+      toast.dismiss();
+      toast.success('Sales report downloaded!');
+    } catch (e) {
+      toast.dismiss();
+      toast.error('Failed to generate report');
+      console.error(e);
     }
   };
-  
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600" />
       </div>
     );
   }
 
-  // Monthly target from company settings or default
-  const monthlyTarget = company?.monthlyTarget || 500000;
-  const currentRevenue = stats?.totalRevenue || 0;
-  const targetProgress = (currentRevenue / monthlyTarget) * 100;
-  const remaining = Math.max(0, monthlyTarget - currentRevenue);
+  // Merge skeleton with real monthlyData so 6 bars always show
+  const skeleton      = buildSixMonthSkeleton();
+  const rawMonthly    = stats?.monthlyData || [];
+  const monthlyChart  = skeleton.map(s => {
+    const real = rawMonthly.find(r => r.month === s.month);
+    return real ? { ...s, ...real } : s;
+  });
 
-  const statCards = [
-    {
-      title: 'Total Revenue',
-      value: formatCurrency(stats?.totalRevenue || 0),
-      icon: FiDollarSign,
-      iconBg: 'bg-emerald-50',
-      iconColor: 'text-emerald-600',
-    },
-    {
-      title: 'Paid Amount',
-      value: formatCurrency(stats?.receivedAmount || 0),
-      icon: FiCheckCircle,
-      iconBg: 'bg-teal-50',
-      iconColor: 'text-teal-600',
-    },
-    {
-      title: 'Pending Amount',
-      value: formatCurrency(stats?.pendingAmount || 0),
-      icon: FiClock,
-      iconBg: 'bg-amber-50',
-      iconColor: 'text-amber-600',
-    },
-    {
-      title: 'Total Invoices',
-      value: stats?.totalInvoices || 0,
-      icon: FiFileText,
-      iconBg: 'bg-slate-50',
-      iconColor: 'text-slate-600',
-      subtitle: `${stats?.paidInvoices || 0} paid, ${stats?.unpaidInvoices || 0} unpaid`
-    },
+  // For status bar chart always show 3 bars
+  const statusData = [
+    { name: 'Paid',    value: stats?.paidInvoices    || 0, fill: '#10b981' },
+    { name: 'Unpaid',  value: stats?.unpaidInvoices  || 0, fill: '#f59e0b' },
+    { name: 'Overdue', value: stats?.overdueInvoices || 0, fill: '#ef4444' },
   ];
 
-  // Monthly revenue data
-  const monthlyRevenueData = [
-    { month: 'Jan', revenue: 450000 },
-    { month: 'Feb', revenue: 380000 },
-    { month: 'Mar', revenue: 520000 },
-    { month: 'Apr', revenue: 600000 },
-    { month: 'May', revenue: 480000 },
-    { month: 'Jun', revenue: stats?.totalRevenue || 0 },
-  ];
+  const targetData = getTargetData();
 
-  // Payment trend data
-  const paymentTrendData = [
-    { month: 'Jan', paid: 450000, pending: 100000 },
-    { month: 'Feb', paid: 380000, pending: 150000 },
-    { month: 'Mar', paid: 520000, pending: 80000 },
-    { month: 'Apr', paid: 600000, pending: 120000 },
-    { month: 'May', paid: 480000, pending: 90000 },
-    { month: 'Jun', paid: stats?.receivedAmount || 0, pending: stats?.pendingAmount || 0 },
-  ];
+  const currencyTick = (v) =>
+    v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`;
 
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-100">
-          <p className="font-medium text-gray-700 text-sm mb-1">{label}</p>
-          {payload.map((entry, index) => (
-            <p key={index} className="text-xs" style={{ color: entry.color }}>
-              {entry.name}: <span className="font-semibold">{formatCurrency(entry.value)}</span>
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
-  
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">Overview of your business performance</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      {/* ── Header ── */}
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 mt-1 text-sm">Business overview and performance metrics</p>
         </div>
-
-        {/* Monthly Target Section */}
-        <div className="bg-white rounded-xl p-6 border border-emerald-100 mb-8">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-base font-semibold text-gray-900">Monthly Revenue Target</h3>
-              <p className="text-xs text-gray-500 mt-1">Track your progress towards monthly goal</p>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-bold text-emerald-600">{Math.round(targetProgress)}%</p>
-              <p className="text-xs text-gray-500">of target</p>
-            </div>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="space-y-3">
-            <div className="relative w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-              <div 
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-700 ease-out"
-                style={{ width: `${Math.min(targetProgress, 100)}%` }}
-              ></div>
-            </div>
-            
-            <div className="flex items-center justify-between text-sm">
-              <div>
-                <span className="text-gray-500">Current: </span>
-                <span className="font-semibold text-gray-900">{formatCurrency(currentRevenue)}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Target: </span>
-                <span className="font-semibold text-gray-900">{formatCurrency(monthlyTarget)}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Remaining: </span>
-                <span className="font-semibold text-emerald-600">{formatCurrency(remaining)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {statCards.map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={index}
-                className="bg-white rounded-xl p-6 border border-gray-100 hover:border-emerald-200 transition-all duration-200 hover:shadow-sm"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`${card.iconBg} p-2.5 rounded-lg`}>
-                    <Icon className={`${card.iconColor} text-lg`} />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">{card.title}</p>
-                  <p className="text-2xl font-semibold text-gray-900">{card.value}</p>
-                  {card.subtitle && (
-                    <p className="text-xs text-gray-400 mt-1">{card.subtitle}</p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Revenue Trend */}
-          <div className="bg-white rounded-xl p-6 border border-gray-100">
-            <div className="mb-6">
-              <h3 className="text-base font-semibold text-gray-900">Revenue Trend</h3>
-              <p className="text-xs text-gray-500 mt-1">Last 6 months performance</p>
-            </div>
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={monthlyRevenueData}>
-                <defs>
-                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#059669" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#9ca3af" 
-                  tick={{ fontSize: 12 }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                />
-                <YAxis 
-                  stroke="#9ca3af" 
-                  tick={{ fontSize: 12 }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                  tickFormatter={(value) => `₹${value / 1000}k`} 
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#059669" 
-                  strokeWidth={2}
-                  fill="url(#revenueGradient)"
-                  name="Revenue"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Payment Status */}
-          <div className="bg-white rounded-xl p-6 border border-gray-100">
-            <div className="mb-6">
-              <h3 className="text-base font-semibold text-gray-900">Payment Status</h3>
-              <p className="text-xs text-gray-500 mt-1">Paid vs Pending amounts</p>
-            </div>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={paymentTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#9ca3af" 
-                  tick={{ fontSize: 12 }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                />
-                <YAxis 
-                  stroke="#9ca3af" 
-                  tick={{ fontSize: 12 }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                  tickFormatter={(value) => `₹${value / 1000}k`} 
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend 
-                  wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
-                />
-                <Bar 
-                  dataKey="paid" 
-                  fill="#059669" 
-                  name="Paid" 
-                  radius={[4, 4, 0, 0]}
-                  barSize={24}
-                />
-                <Bar 
-                  dataKey="pending" 
-                  fill="#f59e0b" 
-                  name="Pending" 
-                  radius={[4, 4, 0, 0]}
-                  barSize={24}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl p-6 border border-gray-100">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">Quick Actions</h3>
-            <p className="text-xs text-gray-500 mt-1">Common tasks and shortcuts</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link
-              to="/invoices/new"
-              className="group flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all duration-200"
-            >
-              <div className="flex items-center gap-3">
-                <div className="bg-emerald-100 p-2 rounded-lg group-hover:bg-emerald-200 transition-colors">
-                  <FiFileText className="text-emerald-700" size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">New Invoice</p>
-                  <p className="text-xs text-gray-500">Create invoice</p>
-                </div>
-              </div>
-              <FiArrowRight className="text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" size={18} />
-            </Link>
-            
-            <Link
-              to="/clients/new"
-              className="group flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all duration-200"
-            >
-              <div className="flex items-center gap-3">
-                <div className="bg-teal-100 p-2 rounded-lg group-hover:bg-teal-200 transition-colors">
-                  <FiUsers className="text-teal-700" size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">New Client</p>
-                  <p className="text-xs text-gray-500">Add client</p>
-                </div>
-              </div>
-              <FiArrowRight className="text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" size={18} />
-            </Link>
-            
-            <Link
-              to="/products/new"
-              className="group flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all duration-200"
-            >
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-100 p-2 rounded-lg group-hover:bg-slate-200 transition-colors">
-                  <FiPackage className="text-slate-700" size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">New Product</p>
-                  <p className="text-xs text-gray-500">Add service</p>
-                </div>
-              </div>
-              <FiArrowRight className="text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" size={18} />
-            </Link>
-          </div>
-        </div>
-
-        {/* Recent Activity Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-emerald-800">Collection Rate</p>
-              <FiTrendingUp className="text-emerald-600" size={16} />
-            </div>
-            <p className="text-2xl font-semibold text-emerald-900">
-              {stats?.totalRevenue > 0 
-                ? Math.round((stats?.receivedAmount / stats?.totalRevenue) * 100) 
-                : 0}%
-            </p>
-            <p className="text-xs text-emerald-600 mt-1">Of total invoiced</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-5 border border-amber-100">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-amber-800">Outstanding</p>
-              <FiAlertCircle className="text-amber-600" size={16} />
-            </div>
-            <p className="text-2xl font-semibold text-amber-900">
-              {stats?.unpaidInvoices || 0}
-            </p>
-            <p className="text-xs text-amber-600 mt-1">Invoices pending</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-slate-50 to-gray-100 rounded-xl p-5 border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-slate-800">Avg Invoice</p>
-              <FiDollarSign className="text-slate-600" size={16} />
-            </div>
-            <p className="text-2xl font-semibold text-slate-900">
-              {formatCurrency(stats?.totalInvoices > 0 ? (stats?.totalRevenue / stats?.totalInvoices) : 0)}
-            </p>
-            <p className="text-xs text-slate-600 mt-1">Per invoice</p>
-          </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadSalesReport('pdf')}
+            className="btn-primary flex items-center gap-2"
+          >
+            <FiDownload /> Download PDF
+          </button>
+          <button
+            onClick={() => downloadSalesReport('excel')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FiDownload /> Excel
+          </button>
         </div>
       </div>
+
+      {/* ── Stats Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[
+          { label: 'Total Invoices',  val: stats?.totalInvoices  || 0,                         Icon: FiFileText,    bg: 'bg-blue-50',    ic: 'text-blue-600'    },
+          { label: 'Paid Invoices',   val: stats?.paidInvoices   || 0,                         Icon: FiCheckCircle, bg: 'bg-emerald-50', ic: 'text-emerald-600' },
+          { label: 'Unpaid Invoices', val: stats?.unpaidInvoices || 0,                         Icon: FiClock,       bg: 'bg-amber-50',   ic: 'text-amber-600'   },
+          { label: 'Total Revenue',   val: formatCurrency(stats?.totalRevenue || 0),            Icon: FiDollarSign,  bg: 'bg-purple-50',  ic: 'text-purple-600'  },
+        ].map(({ label, val, Icon, bg, ic }) => (
+          <div key={label} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className={`inline-flex p-2 ${bg} rounded-lg mb-3`}>
+              <Icon className={`${ic} text-xl`} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900">{val}</h3>
+            <p className="text-sm text-gray-500 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Sales Targets ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <FiTarget className="text-emerald-600 text-xl" />
+            <h2 className="text-xl font-semibold text-gray-900">Sales Targets</h2>
+          </div>
+          <Link to="/company" className="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+            Edit Targets <FiArrowRight />
+          </Link>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-0 mb-6 border-b border-gray-200">
+          {[
+            { v: 'monthly',    l: 'Monthly'     },
+            { v: 'quarterly',  l: 'Quarterly'   },
+            { v: 'halfYearly', l: 'Half-Yearly' },
+            { v: 'annual',     l: 'Annual'      },
+          ].map(({ v, l }) => (
+            <button
+              key={v}
+              onClick={() => setSelectedTargetPeriod(v)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                selectedTargetPeriod === v
+                  ? 'border-emerald-600 text-emerald-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {targetData && (
+          <>
+            <div className="flex justify-between mb-2 text-sm">
+              <span className="text-gray-600">{targetData.period} Progress</span>
+              <span className="font-semibold text-gray-900">{targetData.pct.toFixed(1)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-5">
+              <div
+                className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${targetData.pct}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { l: 'Current',   v: formatCurrency(targetData.cur),       cls: 'text-gray-900'  },
+                { l: 'Target',    v: formatCurrency(targetData.target),     cls: 'text-gray-900'  },
+                { l: 'Remaining', v: formatCurrency(targetData.remaining),  cls: 'text-amber-600' },
+              ].map(({ l, v, cls }) => (
+                <div key={l} className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-500 mb-1">{l}</p>
+                  <p className={`text-base font-semibold ${cls}`}>{v}</p>
+                </div>
+              ))}
+            </div>
+            {targetData.pct >= 100 && (
+              <div className="mt-4 p-3 bg-emerald-50 rounded-lg flex items-center gap-2">
+                <FiCheckCircle className="text-emerald-600 flex-shrink-0" />
+                <p className="text-sm text-emerald-800 font-medium">
+                  Congratulations! You've achieved your {targetData.label.toLowerCase()} target!
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Both Charts Side-by-Side ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+        {/* Revenue Trend — Line Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-0.5">Revenue Trend</h3>
+          <p className="text-xs text-gray-500 mb-4">Last 6 months performance</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={monthlyChart} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6b7280' }} />
+              <YAxis tickFormatter={currencyTick} tick={{ fontSize: 11, fill: '#6b7280' }} width={52} />
+              <Tooltip
+                formatter={(v) => [formatCurrency(v), 'Revenue']}
+                contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: '#10b981', strokeWidth: 0 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Payment Status — Grouped Bar Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-0.5">Payment Status</h3>
+          <p className="text-xs text-gray-500 mb-4">Paid vs Pending amounts</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={monthlyChart} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6b7280' }} />
+              <YAxis tickFormatter={currencyTick} tick={{ fontSize: 11, fill: '#6b7280' }} width={52} />
+              <Tooltip
+                formatter={(v, name) => [formatCurrency(v), name]}
+                contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="paid"   name="Paid"    fill="#10b981" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="unpaid" name="Pending" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+      </div>
+
+      {/* ── Quick Actions ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { to: '/invoices/new',   label: 'Create Invoice'   },
+          { to: '/quotations/new', label: 'Create Quotation' },
+          { to: '/clients',        label: 'Manage Clients'   },
+        ].map(({ to, label }) => (
+          <Link
+            key={to}
+            to={to}
+            className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200 font-medium text-sm"
+          >
+            <FiFileText className="flex-shrink-0" /> {label}
+          </Link>
+        ))}
+      </div>
+
     </div>
   );
 };

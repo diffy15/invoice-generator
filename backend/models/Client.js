@@ -7,19 +7,19 @@ const clientSchema = new mongoose.Schema({
     trim: true
   },
   contactPerson: {
-    name: { type: String, required: true },
+    name: { type: String, default: '' },
     designation: { type: String, default: '' }
   },
   address: {
-    street: { type: String, required: true },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    pincode: { type: String, required: true },
+    street: { type: String, default: '' },
+    city: { type: String, default: '' },
+    state: { type: String, default: '' },
+    pincode: { type: String, default: '' },
     country: { type: String, default: 'India' }
   },
   contact: {
-    email: { type: String, required: true },
-    phone: { type: String, required: true }
+    email: { type: String, default: '' },
+    phone: { type: String, default: '' }
   },
   taxInfo: {
     gstin: { type: String, default: '' }, // Client's GST number (optional)

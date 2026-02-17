@@ -25,10 +25,6 @@ const productSchema = new mongoose.Schema({
     enum: ['Hourly', 'Fixed', 'Retainer', 'Product'],
     default: 'Hourly'
   },
-  unit: {
-    type: String,
-    default: 'hour', // hour, project, month, etc.
-  },
   isActive: {
     type: Boolean,
     default: true

@@ -10,6 +10,7 @@ import CreateQuotation from './pages/CreateQuotation';
 import ClientList from './pages/ClientList';
 import ProductList from './pages/ProductList';
 import CompanySettings from './pages/CompanySettings';
+import PaymentHistory from './pages/PaymentHistory';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
             <Route path="/invoices" element={<InvoiceList />} />
             <Route path="/invoices/new" element={<CreateInvoice />} />
             <Route path="/invoices/edit/:id" element={<CreateInvoice />} />
+            <Route path="/payments" element={<PaymentHistory />} />
             <Route path="/clients" element={<ClientList />} />
             <Route path="/clients/new" element={<ClientList />} />
             <Route path="/products" element={<ProductList />} />

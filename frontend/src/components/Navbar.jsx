@@ -16,6 +16,7 @@ const Navbar = () => {
     { name: 'Dashboard', path: '/', icon: FiHome },
     { name: 'Quotations', path: '/quotations', icon: FiFileText },
     { name: 'Invoices', path: '/invoices', icon: FiFileText },
+    { name: 'Payments', path: '/payments', icon: FiDollarSign },
     { name: 'Clients', path: '/clients', icon: FiUsers },
     { name: 'Products', path: '/products', icon: FiPackage },
     { name: 'Company', path: '/company', icon: FiSettings },

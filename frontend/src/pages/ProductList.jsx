@@ -19,7 +19,6 @@ const ProductList = () => {
     description: '',
     defaultRate: '',
     billingType: 'Hourly',
-    unit: 'hour',
     isActive: true
   });
 
@@ -177,7 +176,6 @@ const ProductList = () => {
       description: '',
       defaultRate: '',
       billingType: 'Hourly',
-      unit: 'hour',
       isActive: true
     });
     setEditingProduct(null);
@@ -357,7 +355,7 @@ const ProductList = () => {
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900">{product.serviceName}</h3>
                         <p className="text-sm text-gray-500 mt-1">
-                          {product.billingType} • {formatCurrency(product.defaultRate)}/{product.unit}
+                          {product.billingType} • {formatCurrency(product.defaultRate)}
                         </p>
                       </div>
                       <button onClick={() => handleProductToggle(product._id)}>
@@ -503,19 +501,6 @@ const ProductList = () => {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Unit *</label>
-                <input
-                  type="text"
-                  name="unit"
-                  value={productFormData.unit}
-                  onChange={handleProductInputChange}
-                  required
-                  className="input-field"
-                  placeholder="hour, project, month"
-                />
               </div>
 
               <div className="flex items-center">

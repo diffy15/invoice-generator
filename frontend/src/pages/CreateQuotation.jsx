@@ -414,7 +414,7 @@ const CreateQuotation = () => {
                       value={item.quantity}
                       onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                       min="1"
-                      step="0.01"
+                      step="1"
                       required
                       className="input-field"
                     />

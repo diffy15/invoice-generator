@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { companyAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { FiSave, FiBriefcase, FiCheck } from 'react-icons/fi';
@@ -7,6 +7,7 @@ const CompanySettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyId, setCompanyId] = useState(null);
+  const termsTextareaRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -37,6 +38,12 @@ const CompanySettings = () => {
       upiPhone: ''
     },
     termsAndConditions: 'Payment is due within 30 days of invoice date.',
+    salesTargets: {
+      monthly: 500000,
+      quarterly: 1500000,
+      halfYearly: 3000000,
+      annual: 6000000
+    },
     monthlyTarget: 500000,
     logo: '',
     watermark: '',
@@ -137,6 +144,73 @@ const CompanySettings = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const insertFormatting = (type) => {
+    const textarea = termsTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = formData.termsAndConditions;
+    const selectedText = text.substring(start, end);
+
+    let newText = '';
+    let cursorPosition = start;
+
+    switch (type) {
+      case 'bullet':
+        if (start === 0 || text[start - 1] === '\n') {
+          // At start of line, add bullet
+          newText = text.substring(0, start) + '- ' + text.substring(start);
+          cursorPosition = start + 2;
+        } else {
+          // Not at start, add new line with bullet
+          newText = text.substring(0, start) + '\n- ' + text.substring(start);
+          cursorPosition = start + 3;
+        }
+        break;
+
+      case 'number':
+        if (start === 0 || text[start - 1] === '\n') {
+          newText = text.substring(0, start) + '1. ' + text.substring(start);
+          cursorPosition = start + 3;
+        } else {
+          newText = text.substring(0, start) + '\n1. ' + text.substring(start);
+          cursorPosition = start + 4;
+        }
+        break;
+
+      case 'bold':
+        if (selectedText) {
+          newText = text.substring(0, start) + '**' + selectedText + '**' + text.substring(end);
+          cursorPosition = end + 4;
+        } else {
+          newText = text.substring(0, start) + '****' + text.substring(end);
+          cursorPosition = start + 2;
+        }
+        break;
+
+      case 'heading':
+        if (start === 0 || text[start - 1] === '\n') {
+          newText = text.substring(0, start) + '## ' + text.substring(start);
+          cursorPosition = start + 3;
+        } else {
+          newText = text.substring(0, start) + '\n## ' + text.substring(start);
+          cursorPosition = start + 4;
+        }
+        break;
+
+      default:
+        return;
+    }
+
+    setFormData(prev => ({ ...prev, termsAndConditions: newText }));
+    
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+    }, 0);
   };
 
   if (loading) {
@@ -438,23 +512,111 @@ const CompanySettings = () => {
 
         {/* Monthly Target */}
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Monthly Revenue Target</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Target Amount (₹)
-            </label>
-            <input
-              type="number"
-              name="monthlyTarget"
-              value={formData.monthlyTarget}
-              onChange={(e) => handleInputChange(e)}
-              min="0"
-              step="10000"
-              className="input-field"
-              placeholder="500000"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Set your monthly revenue goal to track on the dashboard
+          <h2 className="text-xl font-semibold mb-4">Sales Targets</h2>
+          <p className="text-sm text-gray-600 mb-4">Set your revenue goals for different time periods to track performance on the dashboard</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monthly Target (₹)
+              </label>
+              <input
+                type="number"
+                name="salesTargets.monthly"
+                value={formData.salesTargets?.monthly || 0}
+                onChange={(e) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    salesTargets: {
+                      ...prev.salesTargets,
+                      monthly: parseFloat(e.target.value) || 0
+                    }
+                  }));
+                }}
+                min="0"
+                step="10000"
+                className="input-field"
+                placeholder="500000"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Quarterly Target (₹) <span className="text-xs text-gray-500">(3 months)</span>
+              </label>
+              <input
+                type="number"
+                name="salesTargets.quarterly"
+                value={formData.salesTargets?.quarterly || 0}
+                onChange={(e) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    salesTargets: {
+                      ...prev.salesTargets,
+                      quarterly: parseFloat(e.target.value) || 0
+                    }
+                  }));
+                }}
+                min="0"
+                step="10000"
+                className="input-field"
+                placeholder="1500000"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Half-Yearly Target (₹) <span className="text-xs text-gray-500">(6 months)</span>
+              </label>
+              <input
+                type="number"
+                name="salesTargets.halfYearly"
+                value={formData.salesTargets?.halfYearly || 0}
+                onChange={(e) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    salesTargets: {
+                      ...prev.salesTargets,
+                      halfYearly: parseFloat(e.target.value) || 0
+                    }
+                  }));
+                }}
+                min="0"
+                step="10000"
+                className="input-field"
+                placeholder="3000000"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Annual Target (₹) <span className="text-xs text-gray-500">(12 months)</span>
+              </label>
+              <input
+                type="number"
+                name="salesTargets.annual"
+                value={formData.salesTargets?.annual || 0}
+                onChange={(e) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    salesTargets: {
+                      ...prev.salesTargets,
+                      annual: parseFloat(e.target.value) || 0
+                    }
+                  }));
+                }}
+                min="0"
+                step="10000"
+                className="input-field"
+                placeholder="6000000"
+              />
+            </div>
+          </div>
+          
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+            <p className="text-xs text-blue-800">
+              <strong>Tip:</strong> Set realistic targets based on your business capacity. 
+              Quarterly targets help align with financial reporting periods.
             </p>
           </div>
         </div>
@@ -463,15 +625,64 @@ const CompanySettings = () => {
         <div className="card">
           <h2 className="text-xl font-semibold mb-4">Terms & Conditions</h2>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Default Terms</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Default Terms</label>
+            
+            {/* Formatting Toolbar */}
+            <div className="border border-gray-300 rounded-t-lg bg-gray-50 p-2 flex gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => insertFormatting('bullet')}
+                className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100"
+                title="Add bullet point"
+              >
+                • Bullet
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('number')}
+                className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100"
+                title="Add numbered list"
+              >
+                1. Number
+              </button>
+              <div className="border-l border-gray-300 mx-1"></div>
+              <button
+                type="button"
+                onClick={() => insertFormatting('bold')}
+                className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100 font-bold"
+                title="Bold text"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('heading')}
+                className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100 font-semibold"
+                title="Add heading"
+              >
+                H
+              </button>
+            </div>
+            
             <textarea
+              ref={termsTextareaRef}
               name="termsAndConditions"
               value={formData.termsAndConditions}
               onChange={(e) => handleInputChange(e)}
-              rows="4"
-              className="input-field"
-              placeholder="Payment terms, late fee policy, etc."
+              rows="8"
+              className="input-field rounded-t-none border-t-0"
+              placeholder="Enter terms and conditions. Use toolbar buttons for formatting.&#10;&#10;Example:&#10;- Bullet points start with dash&#10;1. Numbered lists start with number&#10;**Bold text** between double asterisks"
             ></textarea>
+            
+            <div className="mt-2 text-xs text-gray-500">
+              <strong>Formatting Tips:</strong>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>Start line with <code className="bg-gray-100 px-1">-</code> for bullet points</li>
+                <li>Start line with <code className="bg-gray-100 px-1">1.</code> for numbered lists</li>
+                <li>Use <code className="bg-gray-100 px-1">**text**</code> for bold (optional)</li>
+                <li>Leave blank lines between paragraphs for spacing</li>
+              </ul>
+            </div>
           </div>
         </div>
 

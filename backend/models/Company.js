@@ -36,6 +36,28 @@ const companySchema = new mongoose.Schema({
     type: String,
     default: 'Payment is due within 30 days of invoice date.'
   },
+  salesTargets: {
+    monthly: {
+      type: Number,
+      default: 500000,
+      min: 0
+    },
+    quarterly: {
+      type: Number,
+      default: 1500000,
+      min: 0
+    },
+    halfYearly: {
+      type: Number,
+      default: 3000000,
+      min: 0
+    },
+    annual: {
+      type: Number,
+      default: 6000000,
+      min: 0
+    }
+  },
   monthlyTarget: {
     type: Number,
     default: 500000,

@@ -116,6 +116,10 @@ export const generateInvoicePDF = (invoice, company, client) => {
     .info-box { background: #f7fafc; border-left: 3px solid #4299e1; padding: 12px; margin-bottom: 12px; }
     .info-box-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; color: #2d3748; margin-bottom: 6px; }
     .info-box-content { font-size: 8.5pt; line-height: 1.6; color: #4a5568; }
+    .terms-content { text-align: justify; }
+    .term-item { margin-left: 15px; margin-bottom: 6px; text-indent: -15px; }
+    .term-item.numbered { margin-left: 20px; text-indent: -20px; }
+    .term-paragraph { margin-bottom: 8px; text-align: justify; }
     .info-box-content div { margin-bottom: 3px; }
     .info-box-content strong { color: #2d3748; font-weight: 600; }
     
@@ -253,8 +257,25 @@ export const generateInvoicePDF = (invoice, company, client) => {
       </div>
     </div>` : ''}
     
-    ${invoice.notes ? `<div class="info-box"><div class="info-box-title">Notes</div><div class="info-box-content">${invoice.notes}</div></div>` : ''}
-    ${company.termsAndConditions ? `<div class="info-box"><div class="info-box-title">Terms & Conditions</div><div class="info-box-content">${company.termsAndConditions}</div></div>` : ''}
+    ${invoice.notes ? `<div class="info-box"><div class="info-box-title">Notes</div><div class="info-box-content" style="white-space: pre-wrap;">${invoice.notes}</div></div>` : ''}
+    ${company.termsAndConditions ? `
+    <div class="info-box">
+      <div class="info-box-title">Terms & Conditions</div>
+      <div class="info-box-content terms-content">
+        ${company.termsAndConditions.split('\n').map(line => {
+          line = line.trim();
+          if (!line) return '<br/>';
+          // Check if line starts with bullet point indicators
+          if (line.match(/^[-•*]\s/)) {
+            return `<div class="term-item">• ${line.replace(/^[-•*]\s/, '')}</div>`;
+          } else if (line.match(/^\d+[\.\)]\s/)) {
+            return `<div class="term-item numbered">${line}</div>`;
+          } else {
+            return `<div class="term-paragraph">${line}</div>`;
+          }
+        }).join('')}
+      </div>
+    </div>` : ''}
     
     <div class="footer">${invoice.thankYouMessage || 'Thank you for your business!'}</div>
   </div>

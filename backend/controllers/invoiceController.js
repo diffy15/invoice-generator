@@ -383,19 +383,46 @@ const getInvoiceStats = async (req, res) => {
     const paidInvoices = await Invoice.countDocuments({ paymentStatus: 'Paid' });
     const unpaidInvoices = await Invoice.countDocuments({ paymentStatus: 'Unpaid' });
     const partialInvoices = await Invoice.countDocuments({ paymentStatus: 'Partial' });
-    
+
     const totalRevenue = await Invoice.aggregate([
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
-    
+
     const receivedAmount = await Invoice.aggregate([
       { $group: { _id: null, total: { $sum: '$paidAmount' } } }
     ]);
-    
+
     const pendingAmount = await Invoice.aggregate([
       { $group: { _id: null, total: { $sum: '$balanceAmount' } } }
     ]);
-    
+
+    // Build last 6 months monthly data for charts
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const now = new Date();
+    const monthlyData = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+
+      const monthInvoices = await Invoice.find({
+        invoiceDate: { $gte: start, $lte: end }
+      });
+
+      const revenue  = monthInvoices.reduce((s, inv) => s + (inv.total      || 0), 0);
+      const paid     = monthInvoices.reduce((s, inv) => s + (inv.paidAmount  || 0), 0);
+      const unpaid   = monthInvoices.reduce((s, inv) => s + (inv.balanceAmount || 0), 0);
+
+      monthlyData.push({
+        month:    monthNames[d.getMonth()],
+        revenue,
+        paid,
+        unpaid,
+        invoices: monthInvoices.length
+      });
+    }
+
     res.json({
       success: true,
       data: {
@@ -403,9 +430,12 @@ const getInvoiceStats = async (req, res) => {
         paidInvoices,
         unpaidInvoices,
         partialInvoices,
-        totalRevenue: totalRevenue[0]?.total || 0,
-        receivedAmount: receivedAmount[0]?.total || 0,
-        pendingAmount: pendingAmount[0]?.total || 0
+        overdueInvoices: 0,
+        totalRevenue:    totalRevenue[0]?.total    || 0,
+        receivedAmount:  receivedAmount[0]?.total  || 0,
+        pendingAmount:   pendingAmount[0]?.total   || 0,
+        outstandingAmount: pendingAmount[0]?.total || 0,
+        monthlyData
       }
     });
   } catch (error) {

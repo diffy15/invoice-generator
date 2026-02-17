@@ -242,14 +242,14 @@ const ClientList = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Company Name *
+                      Company Name
                     </label>
                     <input
                       type="text"
                       name="companyName"
                       value={formData.companyName}
                       onChange={(e) => handleInputChange(e)}
-                      required
+                      
                       className="input-field"
                     />
                   </div>
@@ -262,13 +262,13 @@ const ClientList = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name *
+                      Name
                     </label>
                     <input
                       type="text"
                       value={formData.contactPerson.name}
                       onChange={(e) => handleInputChange(e, 'contactPerson', 'name')}
-                      required
+                      
                       className="input-field"
                     />
                   </div>
@@ -292,25 +292,25 @@ const ClientList = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email *
+                      Email
                     </label>
                     <input
                       type="email"
                       value={formData.contact.email}
                       onChange={(e) => handleInputChange(e, 'contact', 'email')}
-                      required
+                      
                       className="input-field"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone *
+                      Phone
                     </label>
                     <input
                       type="tel"
                       value={formData.contact.phone}
                       onChange={(e) => handleInputChange(e, 'contact', 'phone')}
-                      required
+                      
                       className="input-field"
                     />
                   </div>
@@ -323,38 +323,38 @@ const ClientList = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Street Address *
+                      Street Address
                     </label>
                     <input
                       type="text"
                       value={formData.address.street}
                       onChange={(e) => handleInputChange(e, 'address', 'street')}
-                      required
+                      
                       className="input-field"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        City *
+                        City
                       </label>
                       <input
                         type="text"
                         value={formData.address.city}
                         onChange={(e) => handleInputChange(e, 'address', 'city')}
-                        required
+                        
                         className="input-field"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        State *
+                        State
                       </label>
                       <input
                         type="text"
                         value={formData.address.state}
                         onChange={(e) => handleInputChange(e, 'address', 'state')}
-                        required
+                        
                         className="input-field"
                       />
                     </div>
@@ -362,13 +362,13 @@ const ClientList = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Pincode *
+                        Pincode
                       </label>
                       <input
                         type="text"
                         value={formData.address.pincode}
                         onChange={(e) => handleInputChange(e, 'address', 'pincode')}
-                        required
+                        
                         className="input-field"
                       />
                     </div>
