@@ -1,107 +1,130 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  FiHome, 
-  FiFileText, 
-  FiUsers, 
-  FiPackage, 
-  FiSettings, 
-  FiDollarSign 
+import {
+  FiHome, FiFileText, FiUsers,
+  FiPackage, FiSettings, FiDollarSign, FiMenu, FiX
 } from 'react-icons/fi';
+
+const navItems = [
+  { name: 'Dashboard',  path: '/',           icon: FiHome       },
+  { name: 'Quotations', path: '/quotations', icon: FiFileText   },
+  { name: 'Invoices',   path: '/invoices',   icon: FiFileText   },
+  { name: 'Payments',   path: '/payments',   icon: FiDollarSign },
+  { name: 'Clients',    path: '/clients',    icon: FiUsers      },
+  { name: 'Products',   path: '/products',   icon: FiPackage    },
+  { name: 'Company',    path: '/company',    icon: FiSettings   },
+];
 
 const Navbar = () => {
   const location = useLocation();
-  
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: FiHome },
-    { name: 'Quotations', path: '/quotations', icon: FiFileText },
-    { name: 'Invoices', path: '/invoices', icon: FiFileText },
-    { name: 'Payments', path: '/payments', icon: FiDollarSign },
-    { name: 'Clients', path: '/clients', icon: FiUsers },
-    { name: 'Products', path: '/products', icon: FiPackage },
-    { name: 'Company', path: '/company', icon: FiSettings },
-  ];
-  
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
-  
+  const [open, setOpen] = useState(false);
+
+  const isActive = (path) =>
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav
+      className="sticky top-0 z-50"
+      style={{
+        background: 'linear-gradient(90deg, #B0D8C0 0%, #C0E8D0 50%, #B8DEC8 100%)',
+        borderBottom: '1px solid #9CCBB0',
+        boxShadow: '0 1px 8px rgba(80,160,110,0.15)',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex items-center justify-between h-16">
+
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="bg-green-600 p-2 rounded-lg">
-              <FiDollarSign className="text-white text-xl" />
+          <Link to="/" className="flex items-center gap-3 flex-shrink-0">
+            <div
+              className="p-2 rounded-lg"
+              style={{
+                background: 'rgba(255,255,255,0.55)',
+                border: '1px solid rgba(255,255,255,0.7)'
+              }}
+            >
+              <FiDollarSign className="text-green-800 text-xl" />
             </div>
-            <span className="text-xl font-bold text-gray-900">
-              Strategic<span className="text-green-600">Knights</span>
+            <span className="text-green-900 text-xl font-semibold tracking-tight">
+              Strategic<span className="text-green-700">Knights</span>
             </span>
           </Link>
-          
-          {/* Navigation Links */}
-          <div className="hidden md:flex space-x-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.path);
-              
+
+          {/* Desktop links */}
+          <div className="hidden md:flex items-center gap-1">
+            {navItems.map(({ name, path, icon: Icon }) => {
+              const active = isActive(path);
               return (
                 <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    flex items-center space-x-2 px-4 py-2 rounded-lg transition-all
-                    ${active 
-                      ? 'bg-green-50 text-green-700 font-semibold' 
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }
-                  `}
+                  key={path}
+                  to={path}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium transition-all duration-150"
+                  style={
+                    active
+                      ? {
+                          background: 'rgba(255,255,255,0.6)',
+                          color: '#14532d',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
+                        }
+                      : { color: '#1a5c36' }
+                  }
+                  onMouseEnter={e => {
+                    if (!active)
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
+                  }}
+                  onMouseLeave={e => {
+                    if (!active)
+                      e.currentTarget.style.background = 'transparent';
+                  }}
                 >
-                  <Icon className={`text-lg ${active ? 'text-green-600' : ''}`} />
-                  <span>{item.name}</span>
+                  <Icon className="text-lg flex-shrink-0" />
+                  {name}
                 </Link>
               );
             })}
           </div>
-          
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button className="text-gray-600 hover:text-gray-900">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
+
+          {/* Mobile toggle */}
+          <button
+            onClick={() => setOpen(!open)}
+            className="md:hidden p-2 rounded-lg transition-colors"
+            style={{ color: '#1a5c36' }}
+          >
+            {open ? <FiX className="text-2xl" /> : <FiMenu className="text-2xl" />}
+          </button>
         </div>
       </div>
-      
-      {/* Mobile Navigation */}
-      <div className="md:hidden border-t border-gray-200">
-        <div className="px-2 pt-2 pb-3 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
-            
+
+      {/* Mobile menu */}
+      {open && (
+        <div
+          className="md:hidden px-3 pb-3 pt-2 space-y-1"
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.5)',
+            background: '#C4E8D4'
+          }}
+        >
+          {navItems.map(({ name, path, icon: Icon }) => {
+            const active = isActive(path);
             return (
               <Link
-                key={item.path}
-                to={item.path}
-                className={`
-                  flex items-center space-x-3 px-3 py-2 rounded-lg
-                  ${active 
-                    ? 'bg-green-50 text-green-700 font-semibold' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                  }
-                `}
+                key={path}
+                to={path}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors"
+                style={
+                  active
+                    ? { background: 'rgba(255,255,255,0.55)', color: '#14532d' }
+                    : { color: '#1a5c36' }
+                }
               >
-                <Icon className={`text-lg ${active ? 'text-green-600' : ''}`} />
-                <span>{item.name}</span>
+                <Icon className="text-lg flex-shrink-0" />
+                {name}
               </Link>
             );
           })}
         </div>
-      </div>
+      )}
     </nav>
   );
 };

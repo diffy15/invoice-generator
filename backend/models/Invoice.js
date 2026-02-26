@@ -81,6 +81,28 @@ const invoiceItemSchema = new mongoose.Schema({
   }
 });
 
+// Payment history entry
+const paymentHistorySchema = new mongoose.Schema({
+  amount: { 
+    type: Number, 
+    required: true, 
+    min: 0 
+  },
+  paymentDate: { 
+    type: Date, 
+    required: true,
+    default: Date.now
+  },
+  paymentMethod: {
+    type: String,
+    default: 'Bank Transfer'
+  },
+  notes: {
+    type: String,
+    default: ''
+  }
+}, { _id: true, timestamps: true });
+
 const invoiceSchema = new mongoose.Schema({
   invoiceNumber: {
     type: String,
@@ -166,6 +188,14 @@ const invoiceSchema = new mongoose.Schema({
   balanceAmount: {
     type: Number,
     required: true
+  },
+  lastPaymentDate: {
+    type: Date,
+    default: null  // Set when payment is recorded
+  },
+  paymentHistory: {
+    type: [paymentHistorySchema],
+    default: []
   },
   
   // Invoice status

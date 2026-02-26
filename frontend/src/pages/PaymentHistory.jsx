@@ -178,21 +178,21 @@ const PaymentHistory = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-green-100 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-500">Total Payments</p>
             <FiFileText className="text-gray-400" />
           </div>
           <p className="text-2xl font-bold text-gray-900">{filtered.length}</p>
         </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-green-100 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-500">Total Received</p>
             <FiDollarSign className="text-emerald-500" />
           </div>
           <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalAmount)}</p>
         </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-green-100 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-500">Average Payment</p>
             <FiDollarSign className="text-blue-500" />
@@ -202,7 +202,7 @@ const PaymentHistory = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+      <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-green-100 p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div className="flex gap-2 items-center">
             <button
@@ -276,10 +276,10 @@ const PaymentHistory = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-green-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50">
+            <thead className="bg-green-50/80">
               <tr>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Invoice</th>
@@ -308,7 +308,7 @@ const PaymentHistory = () => {
                 </tr>
               ) : (
                 filtered.map(p => (
-                  <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={p.id} className="hover:bg-green-50/60 transition-colors">
                     <td className="px-5 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2 text-sm text-gray-700">
                         <FiCalendar className="text-gray-400 flex-shrink-0" />

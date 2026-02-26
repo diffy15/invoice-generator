@@ -251,7 +251,7 @@ const ProductList = () => {
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
               placeholder="Enter category name"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 px-4 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent"
               autoFocus
               onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
             />
@@ -287,7 +287,7 @@ const ProductList = () => {
         return (
           <div key={category} className="mb-8">
             {/* Category Header */}
-            <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-300">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-green-200">
               {isEditing ? (
                 <div className="flex items-center gap-3 flex-1">
                   <input
@@ -414,7 +414,7 @@ const ProductList = () => {
       {/* Product Modal */}
       {showProductModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow border border-green-100-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
               <h2 className="text-xl font-semibold">
                 {editingProduct ? 'Edit Product' : 'Add New Product'}
@@ -524,7 +524,7 @@ const ProductList = () => {
                     setShowProductModal(false);
                     resetProductForm();
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-green-200 rounded-lg text-gray-700 hover:bg-green-50/60"
                 >
                   Cancel
                 </button>

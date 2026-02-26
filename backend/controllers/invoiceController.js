@@ -226,7 +226,8 @@ const updateInvoice = async (req, res) => {
 // @access  Private
 const recordPayment = async (req, res) => {
   try {
-    const { amount } = req.body;
+    console.log('recordPayment called with body:', req.body);
+    const { amount, paymentDate, paymentMethod, notes } = req.body;
     
     const invoice = await Invoice.findById(req.params.id);
     
@@ -237,9 +238,46 @@ const recordPayment = async (req, res) => {
       });
     }
     
+    // Validate amount
+    if (amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment amount must be greater than 0'
+      });
+    }
+    
+    if (amount > invoice.balanceAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Payment amount cannot exceed balance due (₹${invoice.balanceAmount})`
+      });
+    }
+    
+    // Add to payment history
+    // If paymentDate is provided (YYYY-MM-DD), append current IST time
+    let actualPaymentDate;
+    if (paymentDate) {
+      // User selected a date - add current IST time to it
+      const selectedDate = new Date(paymentDate + 'T00:00:00+05:30'); // IST timezone
+      const now = new Date();
+      // Set time to current IST time
+      selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+      actualPaymentDate = selectedDate;
+    } else {
+      actualPaymentDate = new Date(); // Current time
+    }
+    
+    invoice.paymentHistory.push({
+      amount,
+      paymentDate: actualPaymentDate,
+      paymentMethod: paymentMethod || 'Bank Transfer',
+      notes: notes || ''
+    });
+    
     // Update paid amount
     invoice.paidAmount += amount;
     invoice.balanceAmount = invoice.total - invoice.paidAmount;
+    invoice.lastPaymentDate = actualPaymentDate;
     
     // Update payment status
     if (invoice.balanceAmount === 0) {
@@ -260,6 +298,7 @@ const recordPayment = async (req, res) => {
       data: updatedInvoice
     });
   } catch (error) {
+    console.error('recordPayment error:', error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -379,48 +418,91 @@ const deleteInvoice = async (req, res) => {
 // @access  Public
 const getInvoiceStats = async (req, res) => {
   try {
-    const totalInvoices = await Invoice.countDocuments();
-    const paidInvoices = await Invoice.countDocuments({ paymentStatus: 'Paid' });
-    const unpaidInvoices = await Invoice.countDocuments({ paymentStatus: 'Unpaid' });
+    const totalInvoices   = await Invoice.countDocuments();
+    const paidInvoices    = await Invoice.countDocuments({ paymentStatus: 'Paid' });
+    const unpaidInvoices  = await Invoice.countDocuments({ paymentStatus: 'Unpaid' });
     const partialInvoices = await Invoice.countDocuments({ paymentStatus: 'Partial' });
 
-    const totalRevenue = await Invoice.aggregate([
-      { $group: { _id: null, total: { $sum: '$total' } } }
-    ]);
+    const totalRevenueAgg   = await Invoice.aggregate([{ $group: { _id: null, total: { $sum: '$total'         } } }]);
+    const receivedAmountAgg = await Invoice.aggregate([{ $group: { _id: null, total: { $sum: '$paidAmount'    } } }]);
+    const pendingAmountAgg  = await Invoice.aggregate([{ $group: { _id: null, total: { $sum: '$balanceAmount' } } }]);
 
-    const receivedAmount = await Invoice.aggregate([
-      { $group: { _id: null, total: { $sum: '$paidAmount' } } }
-    ]);
-
-    const pendingAmount = await Invoice.aggregate([
-      { $group: { _id: null, total: { $sum: '$balanceAmount' } } }
-    ]);
-
-    // Build last 6 months monthly data for charts
-    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    // ── Build revenue for every month of the current FY (Apr–Mar) ──────────
+    // Also build last-6-months slice for the dashboard line/bar charts
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const now = new Date();
+
+    // Current FY: if current month >= April (3), FY started this year; else last year
+    const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+
+    // FY months in order: Apr(fyStartYear) … Mar(fyStartYear+1)
+    const FY_MONTHS = [
+      { month: 'Apr', year: fyStartYear     },
+      { month: 'May', year: fyStartYear     },
+      { month: 'Jun', year: fyStartYear     },
+      { month: 'Jul', year: fyStartYear     },
+      { month: 'Aug', year: fyStartYear     },
+      { month: 'Sep', year: fyStartYear     },
+      { month: 'Oct', year: fyStartYear     },
+      { month: 'Nov', year: fyStartYear     },
+      { month: 'Dec', year: fyStartYear     },
+      { month: 'Jan', year: fyStartYear + 1 },
+      { month: 'Feb', year: fyStartYear + 1 },
+      { month: 'Mar', year: fyStartYear + 1 },
+    ];
+
+    // Fetch revenue for each FY month
+    const fyMonthlyRevenue = [];
+    for (const { month, year } of FY_MONTHS) {
+      const mIdx = MONTH_NAMES.indexOf(month);
+      const start = new Date(year, mIdx, 1);
+      const end   = new Date(year, mIdx + 1, 0, 23, 59, 59);
+      // Get invoices created in this month (for invoice count)
+      const invoicesInMonth = await Invoice.find({ invoiceDate: { $gte: start, $lte: end } });
+      
+      // Get all invoices where payment was recorded in this month
+      const paidInMonth = await Invoice.find({ 
+        paidAmount: { $gt: 0 },
+        lastPaymentDate: { $gte: start, $lte: end }
+      });
+      
+      fyMonthlyRevenue.push({
+        month,
+        year,
+        revenue:  invoicesInMonth.reduce((s, i) => s + (i.total || 0), 0),  // Total invoice value
+        paid:     paidInMonth.reduce((s, i) => s + (i.paidAmount || 0), 0),  // Actual payments
+        unpaid:   invoicesInMonth.reduce((s, i) => s + (i.balanceAmount || 0), 0),
+        invoices: invoicesInMonth.length,
+      });
+    }
+
+    // Last-6-months slice for the dashboard trend charts
     const monthlyData = [];
-
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const start = new Date(d.getFullYear(), d.getMonth(), 1);
-      const end   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-
-      const monthInvoices = await Invoice.find({
-        invoiceDate: { $gte: start, $lte: end }
-      });
-
-      const revenue  = monthInvoices.reduce((s, inv) => s + (inv.total      || 0), 0);
-      const paid     = monthInvoices.reduce((s, inv) => s + (inv.paidAmount  || 0), 0);
-      const unpaid   = monthInvoices.reduce((s, inv) => s + (inv.balanceAmount || 0), 0);
-
-      monthlyData.push({
-        month:    monthNames[d.getMonth()],
-        revenue,
-        paid,
-        unpaid,
-        invoices: monthInvoices.length
-      });
+      const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mName = MONTH_NAMES[d.getMonth()];
+      const found = fyMonthlyRevenue.find(r => r.month === mName && r.year === d.getFullYear());
+      if (found) {
+        monthlyData.push(found);
+      } else {
+        // month outside current FY — fetch on-the-fly
+        const start = new Date(d.getFullYear(), d.getMonth(), 1);
+        const end   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+        const invoicesInMonth = await Invoice.find({ invoiceDate: { $gte: start, $lte: end } });
+        const paidInMonth = await Invoice.find({ 
+          paidAmount: { $gt: 0 },
+          lastPaymentDate: { $gte: start, $lte: end }
+        });
+        
+        monthlyData.push({
+          month: mName,
+          year:  d.getFullYear(),
+          revenue:  invoicesInMonth.reduce((s, v) => s + (v.total || 0), 0),
+          paid:     paidInMonth.reduce((s, v) => s + (v.paidAmount || 0), 0),
+          unpaid:   invoicesInMonth.reduce((s, v) => s + (v.balanceAmount || 0), 0),
+          invoices: invoicesInMonth.length,
+        });
+      }
     }
 
     res.json({
@@ -430,19 +512,18 @@ const getInvoiceStats = async (req, res) => {
         paidInvoices,
         unpaidInvoices,
         partialInvoices,
-        overdueInvoices: 0,
-        totalRevenue:    totalRevenue[0]?.total    || 0,
-        receivedAmount:  receivedAmount[0]?.total  || 0,
-        pendingAmount:   pendingAmount[0]?.total   || 0,
-        outstandingAmount: pendingAmount[0]?.total || 0,
-        monthlyData
+        overdueInvoices:   0,
+        totalRevenue:      totalRevenueAgg[0]?.total   || 0,
+        receivedAmount:    receivedAmountAgg[0]?.total || 0,
+        pendingAmount:     pendingAmountAgg[0]?.total  || 0,
+        outstandingAmount: pendingAmountAgg[0]?.total  || 0,
+        fyStartYear,
+        fyMonthlyRevenue,   // full 12-month FY breakdown
+        monthlyData,        // last-6-months for charts
       }
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

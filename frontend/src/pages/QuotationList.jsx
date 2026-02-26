@@ -184,28 +184,28 @@ const QuotationList = () => {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 border border-gray-100">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-green-100">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-500">Total Quotations</p>
               <FiFileText className="text-gray-400" />
             </div>
             <p className="text-2xl font-bold text-gray-900">{stats.totalQuotations}</p>
           </div>
-          <div className="bg-white rounded-xl p-6 border border-gray-100">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-green-100">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-500">Accepted</p>
               <FiCheckCircle className="text-emerald-500" />
             </div>
             <p className="text-2xl font-bold text-emerald-600">{stats.acceptedQuotations}</p>
           </div>
-          <div className="bg-white rounded-xl p-6 border border-gray-100">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-green-100">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-500">Pending</p>
               <FiClock className="text-blue-500" />
             </div>
             <p className="text-2xl font-bold text-blue-600">{stats.sentQuotations}</p>
           </div>
-          <div className="bg-white rounded-xl p-6 border border-gray-100">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-green-100">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-gray-500">Total Value</p>
               <FiFileText className="text-gray-400" />
@@ -216,7 +216,7 @@ const QuotationList = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-sm p-4 border border-green-100 mb-6">
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setFilterStatus('')}
@@ -241,10 +241,10 @@ const QuotationList = () => {
       </div>
 
       {/* Quotations Table */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden border border-green-100">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-green-50/80">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Quotation #
@@ -278,7 +278,7 @@ const QuotationList = () => {
                 </tr>
               ) : (
                 quotations.map((quotation) => (
-                  <tr key={quotation._id} className="hover:bg-gray-50">
+                  <tr key={quotation._id} className="hover:bg-green-50/60">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <FiFileText className="text-gray-400 mr-2" />

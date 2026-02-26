@@ -6,6 +6,7 @@ import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { generateInvoiceReport } from '../utils/reportGenerator';
 import toast from 'react-hot-toast';
 import { FiPlus, FiEye, FiEdit2, FiTrash2, FiDollarSign, FiFilter, FiPrinter, FiDownload } from 'react-icons/fi';
+import PaymentModal from '../components/PaymentModal';
 
 const InvoiceList = () => {
   const [invoices, setInvoices] = useState([]);
@@ -87,27 +88,19 @@ const InvoiceList = () => {
     setShowPaymentModal(true);
   };
 
-  const handleRecordPayment = async () => {
-    if (!paymentAmount || paymentAmount <= 0) {
-      toast.error('Please enter a valid payment amount');
-      return;
-    }
-
-    if (parseFloat(paymentAmount) > selectedInvoice.balanceAmount) {
-      toast.error('Payment amount cannot exceed balance amount');
-      return;
-    }
-
+  const handleRecordPayment = async (paymentData) => {
     try {
-      await invoiceAPI.recordPayment(selectedInvoice._id, parseFloat(paymentAmount));
+      console.log('Recording payment with data:', paymentData);
+      toast.loading('Recording payment...');
+      await invoiceAPI.recordPayment(selectedInvoice._id, paymentData);
+      toast.dismiss();
       toast.success('Payment recorded successfully!');
-      setShowPaymentModal(false);
-      setSelectedInvoice(null);
-      setPaymentAmount('');
       fetchInvoices();
     } catch (error) {
-      toast.error('Failed to record payment');
-      console.error(error);
+      toast.dismiss();
+      toast.error(error.response?.data?.message || 'Failed to record payment');
+      console.error('Payment error:', error);
+      throw error;
     }
   };
 
@@ -160,7 +153,7 @@ const InvoiceList = () => {
       </div>
 
       {/* Filters */}
-      <div className="card mb-6">
+      <div className="card mb-6 bg-white/90 backdrop-blur-sm border-green-100">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -208,10 +201,10 @@ const InvoiceList = () => {
       </div>
 
       {/* Invoice Table */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden bg-white/90 backdrop-blur-sm border-green-100">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-green-50/80">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Invoice
@@ -238,7 +231,7 @@ const InvoiceList = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {invoices.map((invoice) => (
-                <tr key={invoice._id} className="hover:bg-gray-50">
+                <tr key={invoice._id} className="hover:bg-green-50/60">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {invoice.invoiceNumber}
@@ -325,104 +318,15 @@ const InvoiceList = () => {
         )}
       </div>
 
-      {/* Payment Modal */}
-      {showPaymentModal && selectedInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h2 className="text-2xl font-bold text-gray-900">Record Payment</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Invoice: {selectedInvoice.invoiceNumber}
-              </p>
-            </div>
-
-            <div className="p-6">
-              {/* Invoice Details */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-gray-600">Total Amount:</span>
-                  <span className="text-sm font-semibold">{formatCurrency(selectedInvoice.total)}</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-gray-600">Paid Amount:</span>
-                  <span className="text-sm font-semibold text-green-600">
-                    {formatCurrency(selectedInvoice.paidAmount || 0)}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-gray-300">
-                  <span className="text-sm font-semibold text-gray-900">Balance Due:</span>
-                  <span className="text-lg font-bold text-red-600">
-                    {formatCurrency(selectedInvoice.balanceAmount)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Payment Amount Input */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Amount (₹) *
-                </label>
-                <input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  min="0"
-                  max={selectedInvoice.balanceAmount}
-                  step="0.01"
-                  className="input-field"
-                  placeholder="Enter amount received"
-                  autoFocus
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Maximum: {formatCurrency(selectedInvoice.balanceAmount)}
-                </p>
-              </div>
-
-              {/* Quick Amount Buttons */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quick Select:
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentAmount(selectedInvoice.balanceAmount)}
-                    className="flex-1 px-3 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 font-medium text-sm"
-                  >
-                    Full Payment
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentAmount(selectedInvoice.balanceAmount / 2)}
-                    className="flex-1 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium text-sm"
-                  >
-                    50%
-                  </button>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setSelectedInvoice(null);
-                    setPaymentAmount('');
-                  }}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRecordPayment}
-                  className="btn-primary"
-                >
-                  Record Payment
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Payment Modal */}      {showPaymentModal && selectedInvoice && (
+        <PaymentModal
+          invoice={selectedInvoice}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedInvoice(null);
+          }}
+          onSuccess={handleRecordPayment}
+        />
       )}
     </div>
   );

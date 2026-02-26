@@ -614,7 +614,7 @@ const CreateInvoice = () => {
                 <span className="font-semibold">{formatCurrency(totals.taxAmount)}</span>
               </div>
 
-              <div className="border-t border-gray-300 pt-3">
+              <div className="border-t border-green-200 pt-3">
                 <div className="flex justify-between">
                   <span className="text-lg font-semibold">Total</span>
                   <span className="text-2xl font-bold text-primary-600">

@@ -50,16 +50,13 @@ export const clientAPI = {
 export const invoiceAPI = {
   getAllInvoices: (params) => api.get('/invoices', { params }),
   getInvoiceById: (id) => api.get(`/invoices/${id}`),
-  getInvoiceByNumber: (invoiceNumber) =>
-    api.get(`/invoices/number/${invoiceNumber}`),
+  getInvoiceByNumber: (invoiceNumber) => api.get(`/invoices/number/${invoiceNumber}`),
   getInvoiceStats: () => api.get('/invoices/stats'),
   createInvoice: (data) => api.post('/invoices', data),
   updateInvoice: (id, data) => api.put(`/invoices/${id}`, data),
-  recordPayment: (id, amount) =>
-    api.patch(`/invoices/${id}/payment`, { amount }),
-  updateInvoiceStatus: (id, status) =>
-    api.patch(`/invoices/${id}/status`, { status }),
-  updateMilestoneStatus: (id, itemIndex, milestoneIndex, data) =>
+  recordPayment: (id, paymentData) => api.patch(`/invoices/${id}/payment`, paymentData),
+  updateInvoiceStatus: (id, status) => api.patch(`/invoices/${id}/status`, { status }),
+  updateMilestoneStatus: (id, itemIndex, milestoneIndex, data) => 
     api.patch(`/invoices/${id}/milestone/${itemIndex}/${milestoneIndex}`, data),
   deleteInvoice: (id) => api.delete(`/invoices/${id}`),
 };

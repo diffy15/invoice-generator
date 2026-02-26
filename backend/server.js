@@ -32,12 +32,20 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400  // Cache preflight for 24 hours
 }));
 
 /* -------------------- MIDDLEWARE -------------------- */
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+
+// ADD THESE 2 LINES FOR DEBUGGING (remove later):
+app.use((req, res, next) => { console.log(`${req.method} ${req.path}`); next(); });
+
 
 /* -------------------- ROUTES -------------------- */
 app.use('/api/products', productRoutes);
