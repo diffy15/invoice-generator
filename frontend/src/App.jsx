@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
+import Reports from './pages/Reports';
 import InvoiceList from './pages/InvoiceList';
 import CreateInvoice from './pages/CreateInvoice';
 import QuotationList from './pages/QuotationList';
@@ -32,6 +33,7 @@ function App() {
             <Route path="/clients/new" element={<ClientList />} />
             <Route path="/products" element={<ProductList />} />
             <Route path="/products/new" element={<ProductList />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/company" element={<CompanySettings />} />
           </Routes>
         </main>

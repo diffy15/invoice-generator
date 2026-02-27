@@ -2,21 +2,22 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   FiHome, FiFileText, FiUsers,
-  FiPackage, FiSettings, FiDollarSign, FiMenu, FiX
+  FiPackage, FiSettings, FiDollarSign, FiBarChart2, FiMenu, FiX
 } from 'react-icons/fi';
 
 const navItems = [
-  { name: 'Dashboard',  path: '/',           icon: FiHome       },
+  { name: 'Dashboard',  path: '/',          icon: FiHome       },
   { name: 'Quotations', path: '/quotations', icon: FiFileText   },
   { name: 'Invoices',   path: '/invoices',   icon: FiFileText   },
   { name: 'Payments',   path: '/payments',   icon: FiDollarSign },
+  { name: 'Reports',    path: '/reports',    icon: FiBarChart2  },
   { name: 'Clients',    path: '/clients',    icon: FiUsers      },
   { name: 'Products',   path: '/products',   icon: FiPackage    },
   { name: 'Company',    path: '/company',    icon: FiSettings   },
 ];
 
 const Navbar = () => {
-  const location = useLocation();
+  const location    = useLocation();
   const [open, setOpen] = useState(false);
 
   const isActive = (path) =>
@@ -35,49 +36,36 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 flex-shrink-0">
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
             <div
-              className="p-2 rounded-lg"
-              style={{
-                background: 'rgba(255,255,255,0.55)',
-                border: '1px solid rgba(255,255,255,0.7)'
-              }}
+              className="p-1.5 rounded-lg"
+              style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.7)' }}
             >
               <FiDollarSign className="text-green-800 text-xl" />
             </div>
-            <span className="text-green-900 text-xl font-semibold tracking-tight">
+            <span className="text-green-900 text-lg font-bold tracking-tight">
               Strategic<span className="text-green-700">Knights</span>
             </span>
           </Link>
 
           {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-0.5">
             {navItems.map(({ name, path, icon: Icon }) => {
               const active = isActive(path);
               return (
                 <Link
                   key={path}
                   to={path}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium transition-all duration-150"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150"
                   style={
                     active
-                      ? {
-                          background: 'rgba(255,255,255,0.6)',
-                          color: '#14532d',
-                          boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
-                        }
+                      ? { background: 'rgba(255,255,255,0.6)', color: '#14532d', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }
                       : { color: '#1a5c36' }
                   }
-                  onMouseEnter={e => {
-                    if (!active)
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
-                  }}
-                  onMouseLeave={e => {
-                    if (!active)
-                      e.currentTarget.style.background = 'transparent';
-                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.35)'; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <Icon className="text-lg flex-shrink-0" />
+                  <Icon className="text-base flex-shrink-0" />
                   {name}
                 </Link>
               );
@@ -90,7 +78,7 @@ const Navbar = () => {
             className="md:hidden p-2 rounded-lg transition-colors"
             style={{ color: '#1a5c36' }}
           >
-            {open ? <FiX className="text-2xl" /> : <FiMenu className="text-2xl" />}
+            {open ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
           </button>
         </div>
       </div>
@@ -98,11 +86,8 @@ const Navbar = () => {
       {/* Mobile menu */}
       {open && (
         <div
-          className="md:hidden px-3 pb-3 pt-2 space-y-1"
-          style={{
-            borderTop: '1px solid rgba(255,255,255,0.5)',
-            background: '#C4E8D4'
-          }}
+          className="md:hidden px-3 pb-3 pt-1 space-y-0.5"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.5)', background: '#C4E8D4' }}
         >
           {navItems.map(({ name, path, icon: Icon }) => {
             const active = isActive(path);
@@ -111,14 +96,14 @@ const Navbar = () => {
                 key={path}
                 to={path}
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
                 style={
                   active
                     ? { background: 'rgba(255,255,255,0.55)', color: '#14532d' }
                     : { color: '#1a5c36' }
                 }
               >
-                <Icon className="text-lg flex-shrink-0" />
+                <Icon className="text-base flex-shrink-0" />
                 {name}
               </Link>
             );
