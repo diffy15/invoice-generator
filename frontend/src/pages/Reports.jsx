@@ -50,7 +50,10 @@ const Reports = () => {
       ]);
       
       setCompany(companyRes.data.data);
-      setInvoices(invoicesRes.data.data || []);
+      const invoiceData = invoicesRes.data.data || [];
+      console.log('Loaded invoices:', invoiceData.length);
+      console.log('First invoice client:', invoiceData[0]?.client);
+      setInvoices(invoiceData);
       
       // Set default to current month
       const now = new Date();
@@ -362,7 +365,7 @@ const Reports = () => {
         ${invoices.map(inv => `
         <tr>
           <td class="invoice-number">${inv.invoiceNumber}</td>
-          <td class="client-name">${inv.client?.name || 'N/A'}</td>
+          <td class="client-name">${inv.client?.companyName || inv.client?.name || 'Unknown Client'}</td>
           <td>${new Date(inv.invoiceDate).toLocaleDateString('en-IN')}</td>
           <td>${inv.items.map(item => item.service).join(', ')}</td>
           <td>
@@ -383,7 +386,7 @@ const Reports = () => {
       <h3>Payment History</h3>
       ${invoices.filter(inv => inv.paymentHistory && inv.paymentHistory.length > 0).map(inv => `
         <div style="margin-bottom: 20px;">
-          <strong>${inv.invoiceNumber}</strong> - ${inv.client?.name || 'N/A'}
+          <strong>${inv.invoiceNumber}</strong> - ${inv.client?.companyName || inv.client?.name || 'Unknown Client'}
           ${inv.paymentHistory.map(payment => `
           <div class="payment-item">
             <div class="payment-details">
@@ -677,7 +680,7 @@ const Reports = () => {
           ${monthData.invoices.map(inv => `
           <tr>
             <td class="invoice-number">${inv.invoiceNumber}</td>
-            <td>${inv.client?.name || 'N/A'}</td>
+            <td>${inv.client?.companyName || inv.client?.name || 'Unknown Client'}</td>
             <td>${inv.items.map(item => item.service).join(', ')}</td>
             <td><span class="status-badge status-${inv.paymentStatus.toLowerCase()}">${inv.paymentStatus}</span></td>
             <td>${formatCurrency(inv.total)}</td>
@@ -726,7 +729,7 @@ const Reports = () => {
     const headers = ['Invoice #', 'Client', 'Date', 'Service/Product', 'Status', 'Amount', 'Paid', 'Balance', 'Payment History'];
     const rows = invoices.map(inv => [
       inv.invoiceNumber,
-      inv.client?.name || 'N/A',
+      inv.client?.companyName || inv.client?.name || 'Unknown Client',
       new Date(inv.invoiceDate).toLocaleDateString('en-IN'),
       inv.items.map(item => item.service).join('; '),
       inv.paymentStatus,
@@ -754,7 +757,7 @@ const Reports = () => {
       return [
         invMonth,
         inv.invoiceNumber,
-        inv.client?.name || 'N/A',
+        inv.client?.companyName || inv.client?.name || 'Unknown Client',
         invDate.toLocaleDateString('en-IN'),
         inv.items.map(item => item.service).join('; '),
         inv.paymentStatus,
