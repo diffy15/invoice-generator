@@ -132,8 +132,9 @@ const Dashboard = () => {
   const [selHalf,    setSelHalf]    = useState('H1');
   
   // Chart month selections
-  const [chartMonth1, setChartMonth1] = useState(''); // Sales vs Target chart
-  const [chartMonth2, setChartMonth2] = useState(''); // Payment Status chart
+  const [chartMonth1, setChartMonth1] = useState(''); // Monthly: Sales vs Target
+  const [chartMonth2, setChartMonth2] = useState(''); // Monthly: Payment Status
+  // Quarterly and Half-yearly charts show all periods at once (no selection needed)
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -152,8 +153,8 @@ const Dashboard = () => {
         targetsCount: cRes.data.data?.monthlyTargets?.length,
       });
       setSelMonth(`${mNames[now.getMonth()]}-${now.getFullYear()}`);
-      setChartMonth1(`${mNames[now.getMonth()]}-${now.getFullYear()}`); // Sales vs Target
-      setChartMonth2(`${mNames[now.getMonth()]}-${now.getFullYear()}`); // Payment Status
+      setChartMonth1(`${mNames[now.getMonth()]}-${now.getFullYear()}`); // Monthly: Sales vs Target
+      setChartMonth2(`${mNames[now.getMonth()]}-${now.getFullYear()}`); // Monthly: Payment Status
 
       // Auto-set quarter to current quarter
       const m = now.getMonth(); // 0-based
@@ -256,7 +257,7 @@ const Dashboard = () => {
       current += getMonthRevenue(fyMonthlyRevenue, m, yr);
       target  += getMonthTarget(monthlyTargets, m, yr);
     });
-    return { current, target, label: `FY ${fyStartYear}–${String(fyStartYear + 1).slice(-2)}` };
+    return { current, target, label: 'Current FY' };
   }, [fyMonthlyRevenue, monthlyTargets, fyStartYear]);
 
   // ── Chart 1: Sales vs Target (single month) ──────────────
@@ -290,6 +291,110 @@ const Dashboard = () => {
     };
   }, [chartMonth2, fyMonthlyRevenue]);
 
+  // ── Chart 3: Quarterly Sales vs Target (ALL quarters) ─────
+  const chart3Data = useMemo(() => {
+    return QUARTERS.map(q => {
+      let achieved = 0, target = 0;
+      
+      // Get the correct year for each month in FY
+      q.months.forEach(monthName => {
+        const FY_MONTHS_ARRAY = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+        const monthIdx = FY_MONTHS_ARRAY.indexOf(monthName);
+        const year = monthIdx <= 8 ? fyStartYear : fyStartYear + 1;
+        
+        achieved += getMonthRevenue(fyMonthlyRevenue, monthName, year);
+        target += getMonthTarget(monthlyTargets, monthName, year);
+      });
+      
+      return {
+        quarter: q.key,
+        achieved,
+        target
+      };
+    });
+  }, [fyMonthlyRevenue, monthlyTargets, fyStartYear]);
+
+  // ── Chart 4: Quarterly Payment Status (ALL quarters) ──────
+  const chart4Data = useMemo(() => {
+    return QUARTERS.map(q => {
+      let paid = 0, pending = 0;
+      
+      // Get the correct year for each month in FY
+      q.months.forEach(monthName => {
+        const FY_MONTHS_ARRAY = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+        const monthIdx = FY_MONTHS_ARRAY.indexOf(monthName);
+        const year = monthIdx <= 8 ? fyStartYear : fyStartYear + 1;
+        
+        const monthRev = fyMonthlyRevenue.find(r => r.month === monthName && r.year === year);
+        paid += monthRev?.paid || 0;
+        pending += monthRev?.unpaid || 0;
+      });
+      
+      return {
+        quarter: q.key,
+        paid,
+        pending
+      };
+    });
+  }, [fyMonthlyRevenue, fyStartYear]);
+
+  // ── Chart 5: Half-Yearly Sales vs Target (BOTH halves) ────
+  const chart5Data = useMemo(() => {
+    return HALVES.map(h => {
+      let achieved = 0, target = 0;
+      
+      // Expand quarters to get all months
+      h.quarters.forEach(qKey => {
+        const q = QUARTERS.find(qu => qu.key === qKey);
+        if (q) {
+          q.months.forEach(monthName => {
+            const FY_MONTHS_ARRAY = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+            const monthIdx = FY_MONTHS_ARRAY.indexOf(monthName);
+            const year = monthIdx <= 8 ? fyStartYear : fyStartYear + 1;
+            
+            achieved += getMonthRevenue(fyMonthlyRevenue, monthName, year);
+            target += getMonthTarget(monthlyTargets, monthName, year);
+          });
+        }
+      });
+      
+      return {
+        half: h.key,
+        achieved,
+        target
+      };
+    });
+  }, [fyMonthlyRevenue, monthlyTargets, fyStartYear]);
+
+  // ── Chart 6: Half-Yearly Payment Status (BOTH halves) ─────
+  const chart6Data = useMemo(() => {
+    return HALVES.map(h => {
+      let paid = 0, pending = 0;
+      
+      // Expand quarters to get all months
+      h.quarters.forEach(qKey => {
+        const q = QUARTERS.find(qu => qu.key === qKey);
+        if (q) {
+          q.months.forEach(monthName => {
+            const FY_MONTHS_ARRAY = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+            const monthIdx = FY_MONTHS_ARRAY.indexOf(monthName);
+            const year = monthIdx <= 8 ? fyStartYear : fyStartYear + 1;
+            
+            const monthRev = fyMonthlyRevenue.find(r => r.month === monthName && r.year === year);
+            paid += monthRev?.paid || 0;
+            pending += monthRev?.unpaid || 0;
+          });
+        }
+      });
+      
+      return {
+        half: h.key,
+        paid,
+        pending
+      };
+    });
+  }, [fyMonthlyRevenue, fyStartYear]);
+
   // ── Tabs config ──────────────────────────────────────────
   const TABS = [
     { key: 'monthly',    label: 'Monthly'    },
@@ -318,7 +423,7 @@ const Dashboard = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
-            FY {fyStartYear}–{String(fyStartYear + 1).slice(-2)} · Business overview
+            Business overview
           </p>
         </div>
         <div className="flex gap-2">
@@ -357,7 +462,7 @@ const Dashboard = () => {
             <h2 className="text-xl font-semibold text-gray-900">Sales Targets</h2>
             <span className="text-xs px-2 py-0.5 rounded-full font-medium"
               style={{ background: 'rgba(168,216,184,0.4)', color: '#14532d', border: '1px solid #A8D8B8' }}>
-              FY {fyStartYear}–{String(fyStartYear + 1).slice(-2)}
+              Current Financial Year
             </span>
           </div>
           <Link to="/company" className="text-sm font-medium flex items-center gap-1"
@@ -539,6 +644,108 @@ const Dashboard = () => {
               Select a month to view data
             </div>
           )}
+        </div>
+
+      </div>
+
+      {/* ── Quarterly Charts ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+        {/* Chart 3: Quarterly Sales vs Target */}
+        <div className="rounded-xl shadow-sm p-6" style={cardStyle}>
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">Quarterly: Sales vs Target</h3>
+            <p className="text-xs text-gray-500 mt-0.5">All quarters comparison</p>
+          </div>
+          
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={chart3Data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f4f0" />
+                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tickFormatter={currencyTick} tick={{ fontSize: 11, fill: '#6b7280' }} width={60} />
+                <Tooltip 
+                  formatter={(v, name) => [fc(v), name]}
+                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="achieved" name="Achieved" stroke="#16a34a" strokeWidth={3} dot={{ r: 5, fill: '#16a34a' }} />
+                <Line type="monotone" dataKey="target" name="Target" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5, fill: '#3b82f6' }} strokeDasharray="5 5" />
+              </LineChart>
+            </ResponsiveContainer>
+        </div>
+
+        {/* Chart 4: Quarterly Payment Status */}
+        <div className="rounded-xl shadow-sm p-6" style={cardStyle}>
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">Quarterly: Payment Status</h3>
+            <p className="text-xs text-gray-500 mt-0.5">All quarters comparison - Paid vs Pending</p>
+          </div>
+          
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={chart4Data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f4f0" />
+                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tickFormatter={currencyTick} tick={{ fontSize: 11, fill: '#6b7280' }} width={60} />
+                <Tooltip 
+                  formatter={(v, name) => [fc(v), name]}
+                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="paid" name="Paid" stroke="#16a34a" strokeWidth={3} dot={{ r: 5, fill: '#16a34a' }} />
+                <Line type="monotone" dataKey="pending" name="Pending" stroke="#f59e0b" strokeWidth={3} dot={{ r: 5, fill: '#f59e0b' }} strokeDasharray="5 5" />
+              </LineChart>
+            </ResponsiveContainer>
+        </div>
+
+      </div>
+
+      {/* ── Half-Yearly Charts ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+        {/* Chart 5: Half-Yearly Sales vs Target */}
+        <div className="rounded-xl shadow-sm p-6" style={cardStyle}>
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">Half-Yearly: Sales vs Target</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Both halves comparison</p>
+          </div>
+          
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={chart5Data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f4f0" />
+                <XAxis dataKey="half" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tickFormatter={currencyTick} tick={{ fontSize: 11, fill: '#6b7280' }} width={60} />
+                <Tooltip 
+                  formatter={(v, name) => [fc(v), name]}
+                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="achieved" name="Achieved" stroke="#16a34a" strokeWidth={3} dot={{ r: 5, fill: '#16a34a' }} />
+                <Line type="monotone" dataKey="target" name="Target" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5, fill: '#3b82f6' }} strokeDasharray="5 5" />
+              </LineChart>
+            </ResponsiveContainer>
+        </div>
+
+        {/* Chart 6: Half-Yearly Payment Status */}
+        <div className="rounded-xl shadow-sm p-6" style={cardStyle}>
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">Half-Yearly: Payment Status</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Both halves comparison - Paid vs Pending</p>
+          </div>
+          
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={chart6Data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f4f0" />
+                <XAxis dataKey="half" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tickFormatter={currencyTick} tick={{ fontSize: 11, fill: '#6b7280' }} width={60} />
+                <Tooltip 
+                  formatter={(v, name) => [fc(v), name]}
+                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="paid" name="Paid" stroke="#16a34a" strokeWidth={3} dot={{ r: 5, fill: '#16a34a' }} />
+                <Line type="monotone" dataKey="pending" name="Pending" stroke="#f59e0b" strokeWidth={3} dot={{ r: 5, fill: '#f59e0b' }} strokeDasharray="5 5" />
+              </LineChart>
+            </ResponsiveContainer>
         </div>
 
       </div>

@@ -20,6 +20,7 @@ const app = express();
 /* -------------------- CORS -------------------- */
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'https://invoice-generator-frontend.netlify.app'
 ];
 
