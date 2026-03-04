@@ -190,6 +190,44 @@ const Reports = () => {
     });
   };
 
+  // ── Month-wise data for a single quarter (3 data points) ─────
+  const getMonthlyDataForQuarter = (quarterKey) => {
+    const quarter = quarters.find(q => q.key === quarterKey);
+    if (!quarter) return [];
+    const startYear = parseInt(selectedFY.split('-')[0]);
+    const calMths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return quarter.months.map(m => {
+      const yr = months.indexOf(m) <= 8 ? startYear : startYear + 1;
+      const mInv = invoices.filter(inv => {
+        const d = new Date(inv.invoiceDate);
+        return calMths[d.getMonth()] === m && d.getFullYear() === yr;
+      });
+      return {
+        month: m,
+        revenue: mInv.reduce((s, i) => s + i.total, 0),
+        paid:    mInv.reduce((s, i) => s + i.paidAmount, 0),
+        pending: mInv.reduce((s, i) => s + i.balanceAmount, 0),
+        target:  getMonthTarget(m, yr),
+      };
+    });
+  };
+
+  // ── Quarter-pair data for a half (Q1+Q2 or Q3+Q4) ────────────
+  const getQuarterPairData = (halfKey) => {
+    const half = halves.find(h => h.key === halfKey);
+    if (!half) return [];
+    return half.quarters.map(qk => {
+      const qInvs = filterInvoicesByQuarter(qk);
+      return {
+        quarter: qk,
+        revenue: qInvs.reduce((s, i) => s + i.total, 0),
+        paid:    qInvs.reduce((s, i) => s + i.paidAmount, 0),
+        pending: qInvs.reduce((s, i) => s + i.balanceAmount, 0),
+        target:  getQuarterTarget(qk),
+      };
+    });
+  };
+
   // ── PDF generators ───────────────────────────────────────────
   const generateMonthlyReportPDF = () => {
     if (!selectedMonth) { toast.error('Please select a month'); return; }
@@ -358,6 +396,59 @@ const Reports = () => {
       svg += '<circle cx="242" cy="25" r="5" fill="#3b82f6"/>';
       svg += '<text x="260" y="30" font-size="11" fill="#4a5568">Target</text>';
     }
+
+    return svg;
+  };
+
+  // Grouped bar: Q1 vs Q2 (or Q3 vs Q4) — Revenue / Paid / Pending / Target
+  const quarterComparisonSVG = (pairData) => {
+    if (pairData.length < 2) return '';
+    const [qa, qb] = pairData;
+    const metrics = [
+      { key: 'revenue', label: 'Revenue', color: '#3b82f6' },
+      { key: 'paid',    label: 'Paid',    color: '#16a34a' },
+      { key: 'pending', label: 'Pending', color: '#f59e0b' },
+      { key: 'target',  label: 'Target',  color: '#8b5cf6' },
+    ];
+    const allVals = metrics.flatMap(m => [qa[m.key], qb[m.key]]);
+    const maxValue = Math.max(...allVals, 1);
+    const scale = 190 / maxValue;
+
+    const groupW = 130;
+    const barW   = 42;
+    const gap    = 10;
+    const startX = 80;
+
+    let svg = '';
+    [260, 210, 160, 110, 60].forEach(y => {
+      svg += '<line x1="60" y1="' + y + '" x2="700" y2="' + y + '" stroke="#e2e8f0" stroke-width="1"/>';
+    });
+    svg += '<line x1="60" y1="280" x2="700" y2="280" stroke="#e2e8f0" stroke-width="2"/>';
+    svg += '<line x1="60" y1="280" x2="60"  y2="45"  stroke="#e2e8f0" stroke-width="2"/>';
+
+    metrics.forEach((m, gi) => {
+      const gx = startX + gi * groupW;
+      const h1 = Math.max(qa[m.key] * scale, 2);
+      const h2 = Math.max(qb[m.key] * scale, 2);
+      const x1 = gx;
+      const x2 = gx + barW + gap;
+
+      svg += '<rect x="' + x1 + '" y="' + (280 - h1) + '" width="' + barW + '" height="' + h1 + '" fill="' + m.color + '" rx="3" opacity="0.9"/>';
+      if (qa[m.key] > 0)
+        svg += '<text x="' + (x1 + barW/2) + '" y="' + Math.max(280 - h1 - 6, 36) + '" text-anchor="middle" font-size="9" font-weight="700" fill="' + m.color + '">' + fc(qa[m.key]) + '</text>';
+
+      svg += '<rect x="' + x2 + '" y="' + (280 - h2) + '" width="' + barW + '" height="' + h2 + '" fill="' + m.color + '" rx="3" opacity="0.4"/>';
+      if (qb[m.key] > 0)
+        svg += '<text x="' + (x2 + barW/2) + '" y="' + Math.max(280 - h2 - 6, 22) + '" text-anchor="middle" font-size="9" font-weight="700" fill="' + m.color + '">' + fc(qb[m.key]) + '</text>';
+
+      const midX = gx + barW + gap / 2;
+      svg += '<text x="' + midX + '" y="300" text-anchor="middle" font-size="11" font-weight="600" fill="#4a5568">' + m.label + '</text>';
+    });
+
+    svg += '<rect x="90" y="18" width="14" height="14" fill="#64748b" rx="2" opacity="0.9"/>';
+    svg += '<text x="108" y="29" font-size="11" fill="#4a5568">' + qa.quarter + '</text>';
+    svg += '<rect x="168" y="18" width="14" height="14" fill="#64748b" rx="2" opacity="0.4"/>';
+    svg += '<text x="186" y="29" font-size="11" fill="#4a5568">' + qb.quarter + '</text>';
 
     return svg;
   };
@@ -587,6 +678,9 @@ const Reports = () => {
     const allQ         = getQuarterlyChartData(invoices);
     const hasTarget    = allQ.some(q => q.target > 0);
 
+    const monthData   = getMonthlyDataForQuarter(quarter.key);
+    const hasMonthTgt = monthData.some(m => m.target > 0);
+
     return wrap(getReportStyles(),
       reportHeader('Quarterly Report', quarter.label + ' \u2014 FY ' + selectedFY) +
       statsGrid(totalRevenue, totalPaid, totalPending, invList.length) +
@@ -596,6 +690,14 @@ const Reports = () => {
         quarter.key + ' \u2014 Payment: Paid vs Pending',
         paymentBarSVG(totalPaid, totalPending, quarter.key)
       ) +
+      '<h3 class="perf-heading">Month-wise Breakdown \u2014 ' + quarter.label + '</h3>' +
+      chartsRow(
+        'Monthly Revenue' + (hasMonthTgt ? ' vs Target' : '') + ' \u2014 ' + quarter.months.join(', '),
+        lineChartSVG(monthData, 'month', 'revenue', 'target', hasMonthTgt),
+        'Monthly Payment: Paid vs Pending \u2014 ' + quarter.months.join(', '),
+        paymentLineChartSVG(monthData, 'month')
+      ) +
+      '<h3 class="perf-heading">All Quarters Overview</h3>' +
       chartSection('All Quarters \u2014 Sales Achieved vs Target',
         lineChartSVG(allQ, 'quarter', 'revenue', 'target', hasTarget)) +
       chartSection('All Quarters \u2014 Payment Status (Paid vs Pending)',
@@ -613,6 +715,9 @@ const Reports = () => {
     const allH         = getHalfYearlyChartData(invoices);
     const hasTarget    = allH.some(h => h.target > 0);
 
+    const pairData  = getQuarterPairData(half.key);
+    const pairLabel = half.key === 'H1' ? 'Q1 vs Q2' : 'Q3 vs Q4';
+
     return wrap(getReportStyles(),
       reportHeader('Half-Yearly Report', half.label + ' \u2014 FY ' + selectedFY) +
       statsGrid(totalRevenue, totalPaid, totalPending, invList.length) +
@@ -622,6 +727,10 @@ const Reports = () => {
         half.key + ' \u2014 Payment: Paid vs Pending',
         paymentBarSVG(totalPaid, totalPending, half.key)
       ) +
+      '<h3 class="perf-heading">Quarter Comparison \u2014 ' + pairLabel + '</h3>' +
+      chartSection(pairLabel + ' \u2014 Revenue / Paid / Pending / Target',
+        quarterComparisonSVG(pairData), 330) +
+      '<h3 class="perf-heading">Both Halves Overview</h3>' +
       chartSection('Both Halves \u2014 Sales Achieved vs Target',
         lineChartSVG(allH, 'half', 'revenue', 'target', hasTarget)) +
       chartSection('Both Halves \u2014 Payment Status (Paid vs Pending)',

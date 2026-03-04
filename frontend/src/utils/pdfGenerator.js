@@ -8,47 +8,93 @@ export const generateInvoicePDF = (invoice, company, client) => {
     return;
   }
 
-  const logo = company.logo;
-  const watermark = company.watermark;
-  const hasLogo = logo && logo.trim() !== '';
+  const logo         = company.logo;
+  const watermark    = company.watermark;
+  const hasLogo      = logo      && logo.trim()      !== '';
   const hasWatermark = watermark && watermark.trim() !== '';
 
-  /* ── PALETTE ── */
-  const MINT = '#7ec699';
-  const MINT_LT = '#a8ddb5';
-  const MINT_BG = '#e8f5e9';
-  const MINT_PL = '#f0f9f4';
-  const TXT_PRI = '#1a202c';
-  const TXT_SEC = '#4a5568';
-  const TXT_MUT = '#718096';
-  const TXT_LGT = '#a0aec0';
-  const BORDER = '#e2e8f0';
-  const BG_ALT = '#f7fafc';
-  const WHITE = '#ffffff';
+  /* ── STRATEGIC KNIGHTS BRAND PALETTE ── */
+  const SK_DARK       = '#1a2530';   // Deep navy-charcoal (primary dark)
+  const SK_MID        = '#2d3e4a';   // Mid dark blue-gray
+  const SK_GREEN      = '#4caf7d';   // Strategic Knights signature green
+  const SK_GREEN_DARK = '#3a8f63';   // Deeper green for accents
+  const SK_GREEN_PALE = '#e8f5ee';   // Pale green tint for zebra rows
+  const GRAY_50       = '#f8fafb';
+  const GRAY_100      = '#f1f4f6';
+  const GRAY_200      = '#e2e8ed';
+  const GRAY_300      = '#c8d4dc';
+  const GRAY_500      = '#7a909e';
+  const GRAY_600      = '#546070';
+  const GRAY_700      = '#374855';
+  const GRAY_900      = '#0f1c26';
+  const WHITE         = '#ffffff';
+  const RED_500       = '#e53e3e';
 
   const html = `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invoice ${invoice.invoiceNumber}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap');
+    /* ── GOOGLE FONTS ── */
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+    @page {
+      size: A4;
+      margin: 12mm 15mm;
+    }
+
+    /* ── SCREEN: A4 page preview ── */
+    @media screen {
+      html {
+        background: #d0d5dc;
+        min-height: 100%;
+      }
+      body {
+        background: transparent;
+        padding: 20px 0 40px;
+      }
+      .page {
+        width: 210mm;
+        min-height: 297mm;
+        background: ${WHITE};
+        margin: 0 auto 20px;
+        padding: 12mm 15mm;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
+        border-radius: 2px;
+        box-sizing: border-box;
+        position: relative;
+      }
+      .page-break { display: none; }
+      .invoice-container { width: auto; background: transparent; }
+    }
+
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      html, body { background: ${WHITE} !important; padding: 0 !important; }
+      .page { box-shadow: none !important; margin: 0 !important; padding: 0 !important;
+              width: auto !important; min-height: auto !important; border-radius: 0 !important; }
+      .page-break { page-break-before: always; break-before: page; }
+      .no-break   { page-break-inside: avoid; break-inside: avoid; }
+      table { page-break-inside: auto; }
+      tr    { page-break-inside: avoid; break-inside: avoid; }
+      thead { display: table-header-group; }
+    }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    @page { size: A4; margin: 0; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 9.5pt;
-      color: ${TXT_PRI};
+      line-height: 1.55;
+      color: ${GRAY_700};
       background: ${WHITE};
-      line-height: 1.5;
     }
 
     .invoice-container {
       position: relative;
-      width: 210mm;
-      min-height: 297mm;
+      width: 100%;
       background: ${WHITE};
       margin: 0 auto;
     }
@@ -56,628 +102,665 @@ export const generateInvoicePDF = (invoice, company, client) => {
     /* ── WATERMARK ── */
     .watermark-overlay {
       position: fixed;
-      top: 50%; left: 50%;
+      top: 50%;
+      left: 50%;
       transform: translate(-50%, -50%);
-      width: 50%;
-      max-width: 460px;
-      opacity: 0.05;
+      width: 55%;
+      opacity: 0.035;
       pointer-events: none;
       z-index: 1;
     }
     .watermark-overlay img { width: 100%; height: auto; }
     .invoice-container > *:not(.watermark-overlay) { position: relative; z-index: 2; }
 
-    /* ════════════════════════════════
-       HEADER
-    ════════════════════════════════ */
-    .header-banner {
-      background: linear-gradient(135deg, ${MINT} 0%, ${MINT_LT} 100%);
-      padding: 36px 44px 44px 44px;
-      border-radius: 0 0 48px 48px;
-      position: relative;
-      overflow: hidden;
+    /* ════════════════════════════════════════
+       PAGE 1 — HEADER
+    ════════════════════════════════════════ */
+
+    /* Top accent bar */
+    .top-bar {
+      height: 4px;
+      background: linear-gradient(90deg, ${SK_GREEN} 0%, ${SK_GREEN_DARK} 100%);
+      margin-bottom: 7mm;
+      border-radius: 2px;
     }
 
-    /* subtle dot pattern */
-    .header-banner::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px);
-      background-size: 20px 20px;
-      pointer-events: none;
-    }
-
-    .header-flex {
+    .invoice-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      position: relative;
-      z-index: 1;
+      margin-bottom: 8mm;
+      gap: 10mm;
     }
 
-    /* ── Company / Logo side ── */
-    .company-section { display: flex; align-items: flex-start; gap: 16px; }
-
-    .logo-box {
-      background: ${WHITE};
-      border-radius: 14px;
-      padding: 10px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    /* Logo area */
+    .logo-wrap {
+      flex: 0 0 auto;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      flex-direction: column;
+      justify-content: flex-start;
     }
-    .logo-box img {
-      max-width: 100px;
-      max-height: 56px;
+    .company-logo {
+      max-width: 72mm;
+      max-height: 32mm;
       object-fit: contain;
       display: block;
     }
-
-    /* when no logo: plain company name */
-    .company-info h1 {
-      font-size: 22pt;
+    .company-name-text {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 20pt;
       font-weight: 700;
-      color: ${WHITE};
-      letter-spacing: -0.5px;
+      color: ${SK_DARK};
       line-height: 1.1;
-      margin-bottom: 4px;
     }
-    .company-info .tagline {
-      font-size: 9pt;
-      color: rgba(255,255,255,0.80);
-    }
-
-    /* when logo: address sits below logo box */
-    .company-info.with-logo h1 { display: none; }
-
-    .company-address-header {
-      margin-top: 10px;
-      font-size: 8.5pt;
-      color: rgba(255,255,255,0.85);
-      line-height: 1.7;
+    .company-sub {
+      font-size: 8pt;
+      color: ${SK_GREEN};
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-top: 1.5mm;
     }
 
-    /* ── Invoice badge ── */
-    .invoice-badge { text-align: right; position: relative; z-index: 1; }
+    /* Invoice title block */
+    .invoice-title-block {
+      flex: 0 0 auto;
+      text-align: right;
+    }
 
     .invoice-title {
-      font-size: 52pt;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 30pt;
       font-weight: 700;
-      color: rgba(255,255,255,0.20);
-      letter-spacing: 5px;
+      color: ${SK_DARK};
+      letter-spacing: -0.5px;
       line-height: 1;
-      margin-bottom: 6px;
+      margin-bottom: 2mm;
     }
 
-    .invoice-num-label {
-      font-size: 7.5pt;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.75);
-      font-weight: 600;
-    }
-
-    .invoice-number {
-      font-family: 'DM Mono', monospace;
-      font-size: 12pt;
+    .invoice-number-badge {
+      display: inline-block;
+      background: ${SK_DARK};
       color: ${WHITE};
-      font-weight: 500;
-      letter-spacing: 0.5px;
+      font-size: 9pt;
+      font-weight: 600;
+      letter-spacing: 1px;
+      padding: 1.5mm 4mm;
+      border-radius: 3px;
+      margin-bottom: 4mm;
     }
 
-    /* header contact strip */
-    .header-contact {
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255,255,255,0.25);
-      display: flex;
-      gap: 28px;
-      font-size: 8.5pt;
-      color: rgba(255,255,255,0.85);
-      position: relative;
-      z-index: 1;
-      flex-wrap: wrap;
-    }
-    .header-contact span { opacity: 0.65; margin-right: 4px; }
-
-    /* ════════════════════════════════
-       CONTENT
-    ════════════════════════════════ */
-    .content-section { padding: 32px 44px 40px; }
-
-    /* ── 3-col cards ── */
-    .cards-grid {
+    .meta-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 28px;
-    }
-
-    .info-card {
-      background: ${WHITE};
-      border: 1.5px solid ${BORDER};
-      border-radius: 14px;
-      overflow: hidden;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    }
-
-    .card-header {
-      display: flex;
+      grid-template-columns: auto auto;
+      gap: 1.5mm 6mm;
+      justify-content: end;
       align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      background: ${BG_ALT};
-      border-bottom: 1.5px solid ${BORDER};
-      font-size: 7.5pt;
-      font-weight: 700;
+    }
+    .meta-label {
+      font-size: 8pt;
+      font-weight: 600;
+      color: ${GRAY_500};
       text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: ${TXT_MUT};
+      letter-spacing: 0.5px;
+      text-align: right;
+    }
+    .meta-value {
+      font-size: 9.5pt;
+      font-weight: 600;
+      color: ${GRAY_900};
+      text-align: left;
+      white-space: nowrap;
     }
 
-    .card-dot {
-      width: 7px; height: 7px;
-      background: ${MINT};
-      border-radius: 50%;
+    /* ════════════════════════════════════════
+       BILLING SECTION
+    ════════════════════════════════════════ */
+
+    .billing-section {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8mm;
+      border: 1pt solid ${GRAY_200};
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .billing-section thead {
+      background: ${SK_DARK};
+    }
+    .billing-section thead th {
+      padding: 3mm 4mm;
+      font-size: 8pt;
+      font-weight: 700;
+      color: ${WHITE};
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      text-align: left;
+      border: none;
+    }
+    /* Green left border accent on first th */
+    .billing-section thead th:first-child {
+      border-left: 3pt solid ${SK_GREEN};
+    }
+
+    .billing-section td {
+      padding: 5mm 4mm;
+      vertical-align: top;
+      border: 1pt solid ${GRAY_200};
+      width: 50%;
+    }
+
+    .billing-name {
+      font-size: 12pt;
+      font-weight: 700;
+      color: ${GRAY_900};
+      margin-bottom: 2mm;
+    }
+    .billing-attn {
+      font-size: 8.5pt;
+      color: ${GRAY_500};
+      margin-bottom: 2mm;
+    }
+    .billing-detail {
+      font-size: 9pt;
+      color: ${GRAY_600};
+      margin-bottom: 1mm;
+      display: flex;
+      gap: 2mm;
+      align-items: baseline;
+    }
+    .billing-label {
+      font-weight: 600;
+      color: ${GRAY_700};
+      min-width: 12mm;
       flex-shrink: 0;
     }
 
-    .card-body {
-      padding: 16px;
-      font-size: 8.5pt;
-      color: ${TXT_SEC};
-      line-height: 1.85;
-    }
-
-    .card-title {
-      font-size: 11pt;
-      font-weight: 700;
-      color: ${TXT_PRI};
-      margin-bottom: 6px;
-    }
-
-    .card-body strong {
-      font-weight: 600;
-      color: ${TXT_MUT};
-    }
-
-    /* detail rows inside invoice details card */
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 7px 0;
-      border-bottom: 1px solid ${BORDER};
-    }
-    .detail-row:last-child { border-bottom: none; }
-    .detail-label { font-size: 8pt; color: ${TXT_MUT}; }
-    .detail-value { font-size: 8pt; font-weight: 600; color: ${TXT_PRI}; }
-
-    /* status badges */
+    /* Status Badge */
     .status-badge {
       display: inline-block;
-      padding: 6px 14px;
+      padding: 1.5mm 4mm;
       border-radius: 20px;
-      font-size: 9pt;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    .status-badge.paid    { background: #d1fae5; color: #065f46; }
-    .status-badge.pending { background: ${MINT_BG}; color: #047857; }
-    .status-badge.unpaid  { background: #fee2e2; color: #991b1b; }
-    .status-badge.partial { background: #fef3c7; color: #92400e; }
-
-    /* ── Section label ── */
-    .section-label {
-      display: flex;
-      align-items: center;
-      gap: 10px;
       font-size: 7.5pt;
       font-weight: 700;
-      letter-spacing: 2px;
+      letter-spacing: 0.8px;
       text-transform: uppercase;
-      color: ${TXT_MUT};
-      margin-bottom: 12px;
+      margin-top: 3mm;
     }
-    .section-label::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: ${BORDER};
-    }
+    .status-badge.paid    { background: #d1fae5; color: #065f46; border: 1pt solid #6ee7b7; }
+    .status-badge.unpaid  { background: #fee2e2; color: #991b1b; border: 1pt solid #fca5a5; }
+    .status-badge.partial { background: #fef3c7; color: #92400e; border: 1pt solid #fde68a; }
+    .status-badge.pending { background: #dbeafe; color: #1e40af; border: 1pt solid #93c5fd; }
 
-    /* ── Items table ── */
-    .table-wrap {
-      border: 1.5px solid ${BORDER};
-      border-radius: 14px;
-      overflow: hidden;
-      margin-bottom: 24px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    }
+    /* ════════════════════════════════════════
+       ITEMS TABLE
+    ════════════════════════════════════════ */
 
     .items-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 8.5pt;
+      margin-bottom: 0;
+      border: 1pt solid ${GRAY_200};
     }
 
-    .items-table thead tr {
-      background: linear-gradient(135deg, ${MINT} 0%, ${MINT_LT} 100%);
+    .items-table thead {
+      background: ${SK_DARK};
+      color: ${WHITE};
     }
-
+    .items-table thead tr th:first-child {
+      border-left: 3pt solid ${SK_GREEN};
+    }
     .items-table th {
-      padding: 11px 14px;
+      padding: 3mm 3mm;
       text-align: left;
-      font-size: 7.5pt;
+      font-size: 8pt;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      border: none;
       color: ${WHITE};
     }
-    .items-table th:last-child,
-    .items-table td:last-child { text-align: right; }
+    .items-table th.right,
+    .items-table td.right { text-align: right; }
+    .items-table th.center,
+    .items-table td.center { text-align: center; }
 
-    .items-table tbody tr { border-bottom: 1px solid ${BORDER}; }
+    .items-table tbody tr {
+      border-bottom: 1pt solid ${GRAY_200};
+    }
+    .items-table tbody tr:nth-child(even) { background: ${SK_GREEN_PALE}; }
+    .items-table tbody tr:nth-child(odd)  { background: ${WHITE}; }
     .items-table tbody tr:last-child { border-bottom: none; }
-    .items-table tbody tr:nth-child(even) { background: ${BG_ALT}; }
 
     .items-table td {
-      padding: 12px 14px;
+      padding: 3.5mm 3mm;
       vertical-align: top;
-      color: ${TXT_SEC};
+      font-size: 9.5pt;
+      color: ${GRAY_700};
     }
 
     .item-name {
+      font-weight: 700;
+      color: ${GRAY_900};
+      font-size: 10pt;
+      margin-bottom: 1mm;
+    }
+    .item-description {
+      font-size: 8pt;
+      color: ${GRAY_500};
+      font-style: italic;
+      line-height: 1.4;
+      margin-bottom: 0.5mm;
+    }
+    .item-meta {
+      font-size: 8pt;
+      color: ${SK_GREEN_DARK};
       font-weight: 600;
-      color: ${TXT_PRI};
-      font-size: 9pt;
-      margin-bottom: 2px;
     }
-    .item-meta { font-size: 7.5pt; color: ${TXT_LGT}; }
-    .item-desc { font-size: 8pt; color: ${TXT_MUT}; margin-top: 2px; }
-
-    .amount-cell {
-      font-family: 'DM Mono', monospace;
-      font-weight: 500;
-      font-size: 9pt;
-      color: ${TXT_PRI};
+    .item-amount {
+      font-weight: 700;
+      color: ${GRAY_900};
     }
 
-    /* ── Summary box ── */
-    .summary-section {
+    /* ════════════════════════════════════════
+       TOTALS SECTION
+    ════════════════════════════════════════ */
+
+    .totals-wrapper {
       display: flex;
       justify-content: flex-end;
-      margin-bottom: 28px;
+      margin-bottom: 6mm;
     }
 
-    .summary-box {
-      width: 320px;
-      border: 1.5px solid ${BORDER};
-      border-radius: 14px;
+    .totals-box {
+      width: 78mm;
+      border: 1pt solid ${GRAY_200};
       overflow: hidden;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
 
-    .summary-header {
-      padding: 10px 18px;
-      background: ${BG_ALT};
-      border-bottom: 1.5px solid ${BORDER};
-      font-size: 7.5pt;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: ${TXT_MUT};
-    }
-
-    .summary-body { padding: 4px 0; }
-
-    .summary-row {
+    .totals-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 9px 18px;
-      border-bottom: 1px solid ${BORDER};
+      padding: 2.5mm 4mm;
+      border-bottom: 1pt solid ${GRAY_200};
+      gap: 8mm;
+    }
+    .totals-row:last-child {
+      border-bottom: none;
+      background: ${SK_DARK};
+      padding: 4mm;
+    }
+    .totals-row.grand .totals-label,
+    .totals-row.grand .totals-value {
+      color: ${WHITE};
+      font-size: 11.5pt;
+      font-weight: 700;
+    }
+    .totals-row.grand .totals-value {
+      color: ${SK_GREEN};
+    }
+
+    .totals-label {
       font-size: 9pt;
-    }
-    .summary-row:last-of-type { border-bottom: none; }
-    .s-label { color: ${TXT_MUT}; }
-    .s-value {
-      font-family: 'DM Mono', monospace;
       font-weight: 500;
-      color: ${TXT_PRI};
+      color: ${GRAY_600};
+      text-align: left;
     }
-    .s-value.red { color: #e53e3e; }
+    .totals-value {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: ${GRAY_900};
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      min-width: 25mm;
+    }
+    .totals-value.discount { color: ${RED_500}; }
 
-    .summary-total {
-      background: linear-gradient(135deg, ${MINT} 0%, ${MINT_LT} 100%);
-      padding: 16px 18px;
+    .totals-label small {
+      display: block;
+      font-size: 7.5pt;
+      color: ${GRAY_500};
+      font-weight: 400;
+      font-style: italic;
+      margin-top: 0.5mm;
+    }
+    .tax-note { font-size: 8pt; color: ${GRAY_500}; font-style: italic; }
+
+    /* ════════════════════════════════════════
+       PAGE 2 — INFO SECTIONS
+    ════════════════════════════════════════ */
+
+    .info-section {
+      margin-bottom: 7mm;
+      page-break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: ${SK_DARK};
+      margin-bottom: 3mm;
+      padding-bottom: 1.5mm;
+      border-bottom: 2pt solid ${GRAY_200};
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      gap: 2mm;
+    }
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 3pt;
+      height: 10pt;
+      background: ${SK_GREEN};
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .section-content {
+      padding: 3mm 0 0 5mm;
+      font-size: 9.5pt;
+      color: ${GRAY_700};
+      line-height: 1.7;
+    }
+    .section-content div {
+      margin-bottom: 1.5mm;
+    }
+    .section-content strong {
+      color: ${GRAY_900};
+      font-weight: 600;
+      min-width: 30mm;
+      display: inline-block;
+    }
+    .section-content p { margin-bottom: 2mm; }
+    .section-content p:last-child { margin-bottom: 0; }
+
+    /* Terms HTML */
+    .terms-html h1, .terms-html h2, .terms-html h3 {
+      font-size: 9.5pt; font-weight: 700;
+      margin: 2mm 0 1mm; color: ${GRAY_900};
+    }
+    .terms-html ul, .terms-html ol {
+      margin: 1mm 0; padding-left: 5mm;
+    }
+    .terms-html li { margin: 0.5mm 0; }
+    .terms-html b, .terms-html strong { font-weight: 700; color: ${GRAY_900}; }
+
+    /* Thank You */
+    .thank-you-section {
+      text-align: center;
+      padding: 6mm 8mm;
+      background: ${GRAY_50};
+      border: 1pt solid ${GRAY_200};
+      border-top: 3pt solid ${SK_GREEN};
+      margin-bottom: 8mm;
+    }
+    .thank-you-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 15pt;
+      font-weight: 700;
+      color: ${SK_DARK};
+      margin-bottom: 2mm;
+    }
+    .thank-you-msg {
+      font-size: 9.5pt;
+      color: ${GRAY_600};
+    }
+
+    /* Footer */
+    .footer {
+      background: ${SK_DARK};
+      padding: 4mm 6mm;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .total-label {
-      font-size: 10pt;
+    .footer-left {
+      font-size: 9pt;
       font-weight: 700;
       color: ${WHITE};
+      letter-spacing: 0.3px;
     }
-    .total-value {
-      font-family: 'DM Mono', monospace;
-      font-size: 17pt;
-      font-weight: 700;
-      color: ${WHITE};
-    }
-
-    /* ── Info boxes (bank / notes / terms) ── */
-    .info-boxes { display: grid; gap: 14px; margin-bottom: 24px; }
-
-    .info-box {
-      background: ${MINT_PL};
-      border-left: 4px solid ${MINT};
-      border-radius: 0 10px 10px 0;
-      overflow: hidden;
-    }
-
-    .info-box-title {
-      padding: 9px 18px;
+    .footer-left span {
+      color: ${SK_GREEN};
       font-size: 7.5pt;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: #2d6a4f;
-      border-bottom: 1px solid ${MINT_BG};
+      font-weight: 400;
+      display: block;
+      margin-top: 0.5mm;
+      letter-spacing: 0;
     }
-
-    .info-box-content {
-      padding: 12px 18px;
-      font-size: 8.5pt;
-      line-height: 1.85;
-      color: ${TXT_SEC};
-    }
-    .info-box-content strong { font-weight: 600; color: ${TXT_PRI}; }
-
-    .terms-html h1, .terms-html h2, .terms-html h3 { font-size: 9pt; font-weight: 700; margin: 0.3em 0; }
-    .terms-html p { margin: 0.2em 0; }
-    .terms-html ul, .terms-html ol { padding-left: 1.4em; margin: 0.2em 0; }
-    .terms-html li { margin: 0.1em 0; }
-    .terms-html b, .terms-html strong { font-weight: 700; }
-    .terms-html i, .terms-html em { font-style: italic; }
-
-    /* ── Footer ── */
-    .footer {
-      margin-top: 36px;
-      padding: 20px 44px;
-      text-align: center;
-      background: ${MINT_PL};
-      border-top: 3px solid ${MINT};
-    }
-    .footer-message {
-      font-size: 10.5pt;
-      font-weight: 600;
-      color: ${TXT_PRI};
-      margin-bottom: 4px;
-    }
-    .footer-company {
+    .footer-right {
       font-size: 8pt;
-      color: ${TXT_MUT};
+      color: ${GRAY_300};
+      text-align: right;
+    }
+    .footer-accent {
+      height: 3px;
+      background: linear-gradient(90deg, ${SK_GREEN} 0%, ${SK_GREEN_DARK} 100%);
+      margin-top: 0;
     }
 
-    @media print {
-      body { background: ${WHITE} !important; }
-      * {
-        print-color-adjust: exact !important;
-        -webkit-print-color-adjust: exact !important;
-      }
-    }
+    /* Utility */
+    .page-break { page-break-before: always; break-before: page; }
+    .no-break   { page-break-inside: avoid; break-inside: avoid; }
   </style>
 </head>
 <body>
 <div class="invoice-container">
 
+  <!-- ══════════ PAGE 1 ══════════ -->
+  <div class="page">
+
   ${hasWatermark ? `<div class="watermark-overlay"><img src="${watermark}" alt=""></div>` : ''}
 
-  <!-- ══ HEADER BANNER ══ -->
-  <div class="header-banner">
-    <div class="header-flex">
+  <!-- Top accent bar -->
+  <div class="top-bar"></div>
 
-      <!-- Company / Logo -->
-      <div class="company-section">
-        ${hasLogo
-      ? `<div class="logo-box"><img src="${logo}" alt="${company.name}"></div>`
-      : `<div class="company-info">
-               <h1>${company.name}</h1>
-               <div class="tagline">${company.address.city}, ${company.address.state}</div>
+  <!-- HEADER -->
+  <div class="invoice-header no-break">
+    <div class="logo-wrap">
+      ${hasLogo
+        ? `<img src="${logo}" alt="${company.name}" class="company-logo">`
+        : `<div class="company-name-text">${company.name}</div>
+           <div class="company-sub">Rise Together</div>`
+      }
+    </div>
+
+    <div class="invoice-title-block">
+      <div class="invoice-title">INVOICE</div>
+      <div class="invoice-number-badge"># ${invoice.invoiceNumber}</div>
+      <div class="meta-grid">
+        <span class="meta-label">Issue Date</span>
+        <span class="meta-value">${formatDate(invoice.invoiceDate)}</span>
+        <span class="meta-label">Due Date</span>
+        <span class="meta-value">${formatDate(invoice.dueDate)}</span>
+        ${invoice.purchaseOrderNumber ? `
+        <span class="meta-label">PO Number</span>
+        <span class="meta-value">${invoice.purchaseOrderNumber}</span>
+        ` : ''}
+      </div>
+    </div>
+  </div>
+
+  <!-- BILLING SECTION -->
+  <table class="billing-section no-break">
+    <thead>
+      <tr>
+        <th>Billed To</th>
+        <th>Payable To</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div class="billing-name">${client.companyName || client.name}</div>
+          ${client.companyName && client.name ? `<div class="billing-attn">Attn: ${client.name}</div>` : ''}
+          <div class="billing-detail">${client.address.street}</div>
+          <div class="billing-detail">${client.address.city}, ${client.address.state}${client.address.pincode ? ' ' + client.address.pincode : ''}</div>
+          ${client.contact?.email ? `<div class="billing-detail"><span class="billing-label">Email:</span>${client.contact.email}</div>` : ''}
+          ${client.contact?.phone ? `<div class="billing-detail"><span class="billing-label">Phone:</span>${client.contact.phone}</div>` : ''}
+          ${client.taxInfo?.gstin ? `<div class="billing-detail" style="margin-top:1mm;"><span class="billing-label">GSTIN:</span>${client.taxInfo.gstin}</div>` : ''}
+        </td>
+        <td>
+          <div class="billing-name">${company.name}</div>
+          ${company.address?.street ? `<div class="billing-detail">${company.address.street}</div>` : ''}
+          <div class="billing-detail">${company.address.city}, ${company.address.state}${company.address.pincode ? ' ' + company.address.pincode : ''}</div>
+          ${company.contact?.email ? `<div class="billing-detail"><span class="billing-label">Email:</span>${company.contact.email}</div>` : ''}
+          ${company.contact?.phone ? `<div class="billing-detail"><span class="billing-label">Phone:</span>${company.contact.phone}</div>` : ''}
+          ${company.taxInfo?.gstin ? `<div class="billing-detail" style="margin-top:1mm;"><span class="billing-label">GSTIN:</span>${company.taxInfo.gstin}</div>` : ''}
+          <div>
+            <span class="status-badge ${(invoice.paymentStatus || 'unpaid').toLowerCase()}">${invoice.paymentStatus}</span>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ITEMS TABLE -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width:52%;">Item / Service</th>
+        <th class="center" style="width:10%;">Qty</th>
+        <th class="right" style="width:19%;">Rate</th>
+        <th class="right" style="width:19%;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${invoice.items.map(item => `
+      <tr>
+        <td>
+          <div class="item-name">${item.service}</div>
+          ${item.description ? `<div class="item-description">${item.description}</div>` : ''}
+          <div class="item-meta">${item.category} &middot; ${item.billingType}${item.taxRate ? ` &middot; Tax ${item.taxRate}%` : ''}</div>
+        </td>
+        <td class="center">${item.quantity}</td>
+        <td class="right">${formatCurrency(item.rate)}</td>
+        <td class="right item-amount">${formatCurrency(item.amount)}</td>
+      </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <!-- TOTALS -->
+  <div class="totals-wrapper no-break">
+    <div class="totals-box">
+      <div class="totals-row">
+        <span class="totals-label">Subtotal</span>
+        <span class="totals-value">${formatCurrency(invoice.subtotal)}</span>
+      </div>
+
+      ${company.taxInfo?.gstEnabled
+        ? invoice.taxRate > 0
+          ? `<div class="totals-row">
+               <span class="totals-label">Tax (${invoice.taxRate}%)</span>
+               <span class="totals-value">${formatCurrency(invoice.taxAmount)}</span>
              </div>`
-    }
+          : `<div class="totals-row">
+               <span class="totals-label tax-note">GST exempted / No GST charged</span>
+               <span class="totals-value">—</span>
+             </div>`
+        : `<div class="totals-row">
+             <span class="totals-label tax-note">GST not included</span>
+             <span class="totals-value">—</span>
+           </div>`
+      }
+
+      ${invoice.discount > 0 ? `
+      <div class="totals-row">
+        <span class="totals-label">
+          Discount${invoice.discountType === 'percentage' ? ` (${invoice.discount}%)` : ''}
+          ${invoice.discountDescription ? `<small>${invoice.discountDescription}</small>` : ''}
+        </span>
+        <span class="totals-value discount">
+          − ${formatCurrency(invoice.discountType === 'percentage'
+            ? (invoice.subtotal * invoice.discount / 100)
+            : invoice.discount)}
+        </span>
       </div>
+      ` : ''}
 
-      <!-- Invoice Badge -->
-      <div class="invoice-badge">
-        <div class="invoice-title">INVOICE</div>
-        <div class="invoice-num-label">Invoice No.</div>
-        <div class="invoice-number"># ${invoice.invoiceNumber}</div>
+      <div class="totals-row grand">
+        <span class="totals-label">Grand Total</span>
+        <span class="totals-value">${formatCurrency(invoice.total)}</span>
       </div>
-
-    </div>
-
-    <!-- Contact strip (always shown) -->
-    <div class="header-contact">
-      <div><span>📍</span>${company.address.street}, ${company.address.city}, ${company.address.state} ${company.address.pincode || ''}</div>
-      <div><span>✉</span>${company.contact.email}</div>
-      <div><span>📞</span>${company.contact.phone}</div>
     </div>
   </div>
 
-  <!-- ══ CONTENT ══ -->
-  <div class="content-section">
+  </div><!-- end .page (page 1) -->
 
-    <!-- 3-col cards -->
-    <div class="cards-grid">
+  <!-- ══════════ PAGE 2 ══════════ -->
+  <div class="page-break"></div>
+  <div class="page">
 
-      <!-- Bill To -->
-      <div class="info-card">
-        <div class="card-header"><span class="card-dot"></span>Bill To</div>
-        <div class="card-body">
-          <div class="card-title">${client.companyName || client.name}</div>
-          ${client.companyName ? `<div>Attn: ${client.name}</div>` : ''}
-          <div>${client.address.street}</div>
-          <div>${client.address.city}, ${client.address.state} ${client.address.pincode}</div>
-          <div style="margin-top:10px;"><strong>Email</strong>&nbsp;${client.contact.email}</div>
-          <div><strong>Phone</strong>&nbsp;${client.contact.phone}</div>
-          ${client.taxInfo?.gstin ? `<div style="margin-top:8px;"><strong>GSTIN</strong>&nbsp;${client.taxInfo.gstin}</div>` : ''}
-        </div>
-      </div>
+  <!-- Top accent bar -->
+  <div class="top-bar"></div>
 
-      <!-- Invoice Details -->
-      <div class="info-card">
-        <div class="card-header"><span class="card-dot"></span>Invoice Details</div>
-        <div class="card-body">
-          <div class="detail-row">
-            <span class="detail-label">Issue Date</span>
-            <span class="detail-value">${formatDate(invoice.invoiceDate)}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Due Date</span>
-            <span class="detail-value">${formatDate(invoice.dueDate)}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Terms</span>
-            <span class="detail-value">${invoice.paymentTerms}</span>
-          </div>
-          ${invoice.purchaseOrderNumber ? `
-          <div class="detail-row">
-            <span class="detail-label">PO Number</span>
-            <span class="detail-value">${invoice.purchaseOrderNumber}</span>
-          </div>` : ''}
-        </div>
-      </div>
-
-      <!-- Payment Status -->
-      <div class="info-card">
-        <div class="card-header"><span class="card-dot"></span>Payment Status</div>
-        <div class="card-body">
-          <div class="status-badge ${invoice.paymentStatus.toLowerCase()}">${invoice.paymentStatus}</div>
-          ${invoice.paymentStatus === 'Paid'
-      ? `<div style="color:#047857;font-size:8.5pt;">Fully paid. Thank you!</div>`
-      : invoice.paymentStatus === 'Partial'
-        ? `<div style="color:#92400e;font-size:8.5pt;">Awaiting remaining payment</div>`
-        : `<div style="color:#047857;font-size:8.5pt;">Awaiting client payment</div>`
-    }
-        </div>
-      </div>
-
+  <!-- PAYMENT INFORMATION -->
+  ${company.bankDetails && (company.bankDetails.accountNumber || company.bankDetails.upiId) ? `
+  <div class="info-section no-break">
+    <div class="section-title">Payment Information</div>
+    <div class="section-content">
+      ${company.bankDetails.accountName   ? `<div><strong>Account Name</strong>${company.bankDetails.accountName}</div>`   : ''}
+      ${company.bankDetails.accountNumber ? `<div><strong>Account No.</strong>${company.bankDetails.accountNumber}</div>` : ''}
+      ${company.bankDetails.bankName      ? `<div><strong>Bank</strong>${company.bankDetails.bankName}</div>`             : ''}
+      ${company.bankDetails.ifscCode      ? `<div><strong>IFSC</strong>${company.bankDetails.ifscCode}</div>`             : ''}
+      ${company.bankDetails.upiId         ? `<div><strong>UPI</strong>${company.bankDetails.upiId}</div>`                 : ''}
     </div>
+  </div>
+  ` : ''}
 
-    <!-- Items Table -->
-    <div class="section-label">Line Items</div>
-    <div class="table-wrap">
-      <table class="items-table">
-        <thead>
-          <tr>
-            <th style="width:46%">Item / Service</th>
-            <th style="width:16%">Description</th>
-            <th style="width:8%">QTY</th>
-            <th style="width:12%">Rate</th>
-            <th style="width:6%">Tax %</th>
-            <th style="width:12%">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${invoice.items.map(item => `
-          <tr>
-            <td>
-              <div class="item-name">${item.service}</div>
-              <div class="item-meta">${item.category} &middot; ${item.billingType}</div>
-            </td>
-            <td class="item-desc">${item.description || '&mdash;'}</td>
-            <td>${item.quantity}</td>
-            <td class="amount-cell">${formatCurrency(item.rate)}</td>
-            <td>${item.taxRate || 0}%</td>
-            <td class="amount-cell">${formatCurrency(item.amount)}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
+  <!-- DISCOUNT DETAILS -->
+  ${invoice.discount > 0 && invoice.discountDescription ? `
+  <div class="info-section no-break">
+    <div class="section-title">Discount / Adjustment Details</div>
+    <div class="section-content">
+      <p>${invoice.discountDescription}</p>
     </div>
+  </div>
+  ` : ''}
 
-    <!-- Summary -->
-    <div class="summary-section">
-      <div class="summary-box">
-        <div class="summary-header">Summary</div>
-        <div class="summary-body">
-          <div class="summary-row">
-            <span class="s-label">Subtotal</span>
-            <span class="s-value">${formatCurrency(invoice.subtotal)}</span>
-          </div>
-          ${company.taxInfo.gstEnabled
-      ? invoice.taxRate > 0
-        ? `<div class="summary-row">
-                   <span class="s-label">Tax (${invoice.taxRate}%)</span>
-                   <span class="s-value">${formatCurrency(invoice.taxAmount)}</span>
-                 </div>`
-        : `<div class="summary-row">
-                   <span class="s-label" style="font-size:7.5pt;font-style:italic;">GST exempted / No GST charged</span>
-                   <span class="s-value">&mdash;</span>
-                 </div>`
-      : `<div class="summary-row">
-                 <span class="s-label" style="font-size:7.5pt;font-style:italic;">GST not included</span>
-                 <span class="s-value">&mdash;</span>
-               </div>`
-    }
-          ${invoice.discount > 0 ? `
-          <div class="summary-row">
-            <span class="s-label">Discount${invoice.discountType === 'percentage' ? ` (${invoice.discount}%)` : ''}</span>
-            <span class="s-value red">&minus; ${formatCurrency(
-      invoice.discountType === 'percentage'
-        ? (invoice.subtotal * invoice.discount / 100)
-        : invoice.discount
-    )}</span>
-          </div>` : ''}
-        </div>
-        <div class="summary-total">
-          <span class="total-label">Grand Total</span>
-          <span class="total-value">${formatCurrency(invoice.total)}</span>
-        </div>
-      </div>
-    </div>
+  <!-- NOTES -->
+  ${invoice.notes ? `
+  <div class="info-section no-break">
+    <div class="section-title">Notes</div>
+    <div class="section-content" style="white-space: pre-wrap;">${invoice.notes}</div>
+  </div>
+  ` : ''}
 
-    <!-- Info Boxes -->
-    <div class="info-boxes">
-      ${company.bankDetails && (company.bankDetails.accountNumber || company.bankDetails.upiId) ? `
-      <div class="info-box">
-        <div class="info-box-title">Payment Information</div>
-        <div class="info-box-content">
-          ${company.bankDetails.accountName ? `<div><strong>Account Name:</strong> ${company.bankDetails.accountName}</div>` : ''}
-          ${company.bankDetails.accountNumber ? `<div><strong>Account Number:</strong> ${company.bankDetails.accountNumber}</div>` : ''}
-          ${company.bankDetails.bankName ? `<div><strong>Bank:</strong> ${company.bankDetails.bankName}</div>` : ''}
-          ${company.bankDetails.ifscCode ? `<div><strong>IFSC:</strong> ${company.bankDetails.ifscCode}</div>` : ''}
-          ${company.bankDetails.upiId ? `<div><strong>UPI:</strong> ${company.bankDetails.upiId}</div>` : ''}
-        </div>
-      </div>` : ''}
+  <!-- TERMS & CONDITIONS -->
+  ${company.termsAndConditions ? `
+  <div class="info-section no-break">
+    <div class="section-title">Terms &amp; Conditions</div>
+    <div class="section-content terms-html">${company.termsAndConditions}</div>
+  </div>
+  ` : ''}
 
-      ${invoice.notes ? `
-      <div class="info-box">
-        <div class="info-box-title">Notes</div>
-        <div class="info-box-content" style="white-space:pre-wrap">${invoice.notes}</div>
-      </div>` : ''}
-
-      ${company.termsAndConditions ? `
-      <div class="info-box">
-        <div class="info-box-title">Terms &amp; Conditions</div>
-        <div class="info-box-content terms-html">${company.termsAndConditions}</div>
-      </div>` : ''}
-    </div>
-
+  <!-- THANK YOU -->
+  <div class="info-section thank-you-section no-break">
+    <div class="thank-you-title">Thank You</div>
+    <div class="thank-you-msg">${invoice.thankYouMessage || 'Thank you for your business! We look forward to serving you again.'}</div>
   </div>
 
-  <!-- ══ FOOTER ══ -->
+  <!-- FOOTER -->
   <div class="footer">
-    <div class="footer-message">${invoice.thankYouMessage || 'Thank you for your business!'}</div>
-    <div class="footer-company">${company.name} &bull; ${company.contact.email}</div>
+    <div class="footer-left">
+      ${company.name}
+      <span>${company.address.city}, ${company.address.state}</span>
+    </div>
+    <div class="footer-right">
+      ${company.contact.email}<br>
+      ${company.contact.phone}
+    </div>
   </div>
+  <div class="footer-accent"></div>
 
-</div>
+  </div><!-- end .page (page 2) -->
+
+</div><!-- end .invoice-container -->
 </body>
 </html>`;
 
