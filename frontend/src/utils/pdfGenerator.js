@@ -613,7 +613,23 @@ export const generateInvoicePDF = (invoice, company, client) => {
     }
 
 
-    /* ── PAGE NUMBERS: handled in @page rule above ── */
+    /* ── PAGE NUMBERS ── */
+    /* Screen: shown as absolute inside .page div */
+    @media screen {
+      .page-number {
+        position: absolute;
+        bottom: 5mm;
+        right: 5mm;
+        font-size: 7pt;
+        color: #7a909e;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+      }
+    }
+    /* Print: hidden (handled by @page margin box above) */
+    @media print {
+      .page-number { display: none; }
+    }
 
     /* Utility */
     .page-break { page-break-before: always; break-before: page; }
@@ -771,6 +787,8 @@ export const generateInvoicePDF = (invoice, company, client) => {
     </div>
   </div>
 
+  <div class="page-number">Page 1 of 2</div>
+
   </div><!-- end .page (page 1) -->
 
   <!-- ══════════ PAGE 2 ══════════ -->
@@ -830,6 +848,8 @@ export const generateInvoicePDF = (invoice, company, client) => {
     </div>
   </div>
   <div class="footer-accent"></div>
+
+  <div class="page-number">Page 2 of 2</div>
 
   </div><!-- end .page (page 2) -->
 
