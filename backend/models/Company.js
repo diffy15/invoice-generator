@@ -50,6 +50,10 @@ const companySchema = new mongoose.Schema({
     annual:     { type: Number, default: 0 }
   },
   monthlyTarget: { type: Number, default: 0 },
+  quotes: {
+    type: [{ text: { type: String, required: true }, _id: false }],
+    default: []
+  },
   logo:      { type: String, default: '' },
   watermark: { type: String, default: '' },
   isActive:  { type: Boolean, default: true }

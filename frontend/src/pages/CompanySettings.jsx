@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { companyAPI } from '../services/api';
 import toast from 'react-hot-toast';
-import { FiSave, FiBriefcase, FiCheck } from 'react-icons/fi';
+import { FiSave, FiBriefcase, FiPlus, FiTrash2 } from 'react-icons/fi';
 import RichTextEditor from '../components/RichTextEditor';
 import SalesTargetsCard, { buildDefaultTargets, mergeTargets } from '../components/SalesTargetsCard';
 
@@ -9,6 +9,7 @@ const CompanySettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyId, setCompanyId] = useState(null);
+  const [newQuoteText, setNewQuoteText] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -39,7 +40,8 @@ const CompanySettings = () => {
       upiPhone: ''
     },
     termsAndConditions: 'Payment is due within 30 days of invoice date.',
-    monthlyTargets: buildDefaultTargets(), // 12-month FY targets (Apr–Mar)
+    monthlyTargets: buildDefaultTargets(),
+    quotes: [],
     logo: '',
     watermark: '',
     isActive: true
@@ -54,16 +56,7 @@ const CompanySettings = () => {
       const response = await companyAPI.getCompany();
       if (response.data.data) {
         const data = response.data.data;
-        console.log('Fetched company data:', {
-          monthlyTargets: data.monthlyTargets,
-          monthlyTargetsCount: data.monthlyTargets?.length,
-        });
         const merged = mergeTargets(data.monthlyTargets || []);
-        console.log('After mergeTargets:', {
-          merged,
-          mergedCount: merged?.length,
-          firstMerged: merged?.[0],
-        });
         setFormData(prev => ({
           ...prev,
           name: data.name || prev.name,
@@ -82,6 +75,7 @@ const CompanySettings = () => {
           logo: data.logo || prev.logo,
           watermark: data.watermark || prev.watermark,
           monthlyTargets: merged,
+          quotes: data.quotes || [],
         }));
         setCompanyId(data._id);
       }
@@ -107,29 +101,41 @@ const CompanySettings = () => {
   const handleFileUpload = (e, fieldName) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file');
       return;
     }
-
-    // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       toast.error('Image size should be less than 2MB');
       return;
     }
-
-    // Convert to base64
     const reader = new FileReader();
     reader.onloadend = () => {
-      setFormData(prev => ({
-        ...prev,
-        [fieldName]: reader.result
-      }));
+      setFormData(prev => ({ ...prev, [fieldName]: reader.result }));
       toast.success(`${fieldName === 'logo' ? 'Logo' : 'Watermark'} uploaded successfully!`);
     };
     reader.readAsDataURL(file);
+  };
+
+  /* ── QUOTE HANDLERS ── */
+  const handleAddQuote = () => {
+    if (!newQuoteText.trim()) {
+      toast.error('Quote text is required');
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      quotes: [...prev.quotes, { text: newQuoteText.trim() }]
+    }));
+    setNewQuoteText('');
+    toast.success('Quote added!');
+  };
+
+  const handleDeleteQuote = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      quotes: prev.quotes.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -142,36 +148,22 @@ const CompanySettings = () => {
       return;
     }
 
-    // DEBUG: log what's being submitted
-    console.log('Submitting formData:', {
-      monthlyTargets: formData.monthlyTargets,
-      monthlyTargetsCount: formData.monthlyTargets?.length,
-      firstTarget: formData.monthlyTargets?.[0],
-    });
-
     try {
       if (companyId) {
-        console.log('Updating company ID:', companyId);
-        const response = await companyAPI.updateCompany(companyId, formData);
-        console.log('Update response:', response.data);
+        await companyAPI.updateCompany(companyId, formData);
         toast.success('Company details updated successfully!');
       } else {
-        console.log('Creating new company');
         const response = await companyAPI.createCompany(formData);
-        console.log('Create response:', response.data);
         setCompanyId(response.data.data._id);
         toast.success('Company details created successfully!');
       }
-      // Refetch to confirm
       fetchCompanyData();
     } catch (error) {
-      console.error('Save error:', error);
       toast.error(error.response?.data?.message || 'Failed to save company details');
     } finally {
       setSaving(false);
     }
   };
-
 
   if (loading) {
     return (
@@ -211,117 +203,62 @@ const CompanySettings = () => {
           </div>
         </div>
 
-        {/* Logo & Watermark - Dynamic Upload */}
+        {/* Logo & Watermark */}
         <div className="card">
           <h2 className="text-xl font-semibold mb-4">Logo & Watermark</h2>
           <p className="text-sm text-gray-500 mb-5">
             Upload your company logo and watermark. These will appear on all invoices and quotations.
           </p>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Logo Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Company Logo
-              </label>
-              <p className="text-xs text-gray-500 mb-3">
-                Used in the header of invoices. Recommended: 200x60px PNG with transparent background.
-              </p>
-              
-              {/* Preview */}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Company Logo</label>
+              <p className="text-xs text-gray-500 mb-3">Recommended: 200x60px PNG with transparent background.</p>
               <div className="border-2 border-dashed border-green-200 rounded-lg p-4 mb-3 bg-gray-50">
                 {formData.logo ? (
                   <div className="relative">
-                    <img
-                      src={formData.logo}
-                      alt="Logo Preview"
-                      className="max-h-24 mx-auto object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, logo: '' }))}
-                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                    <img src={formData.logo} alt="Logo Preview" className="max-h-24 mx-auto object-contain" />
+                    <button type="button" onClick={() => setFormData(prev => ({ ...prev, logo: '' }))} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
                 ) : (
                   <div className="text-center text-gray-400 py-4">
-                    <svg className="mx-auto h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <svg className="mx-auto h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     <p className="text-sm">No logo uploaded</p>
                   </div>
                 )}
               </div>
-              
-              {/* Upload Button */}
               <label className="btn-primary cursor-pointer inline-flex items-center justify-center w-full">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                 Upload Logo
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(e, 'logo')}
-                  className="hidden"
-                />
+                <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'logo')} className="hidden" />
               </label>
             </div>
 
             {/* Watermark Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Watermark
-              </label>
-              <p className="text-xs text-gray-500 mb-3">
-                Appears faintly in the background of invoices. Recommended: PNG with transparency.
-              </p>
-              
-              {/* Preview */}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Watermark</label>
+              <p className="text-xs text-gray-500 mb-3">Appears faintly in the background of invoices. Recommended: PNG with transparency.</p>
               <div className="border-2 border-dashed border-green-200 rounded-lg p-4 mb-3 bg-gray-50">
                 {formData.watermark ? (
                   <div className="relative">
-                    <img
-                      src={formData.watermark}
-                      alt="Watermark Preview"
-                      className="max-h-24 mx-auto object-contain opacity-30"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, watermark: '' }))}
-                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                    <img src={formData.watermark} alt="Watermark Preview" className="max-h-24 mx-auto object-contain opacity-30" />
+                    <button type="button" onClick={() => setFormData(prev => ({ ...prev, watermark: '' }))} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
                 ) : (
                   <div className="text-center text-gray-400 py-4">
-                    <svg className="mx-auto h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <svg className="mx-auto h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     <p className="text-sm">No watermark uploaded</p>
                   </div>
                 )}
               </div>
-              
-              {/* Upload Button */}
               <label className="btn-primary cursor-pointer inline-flex items-center justify-center w-full">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                 Upload Watermark
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(e, 'watermark')}
-                  className="hidden"
-                />
+                <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'watermark')} className="hidden" />
               </label>
             </div>
           </div>
@@ -333,14 +270,7 @@ const CompanySettings = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
-              <input
-                type="text"
-                value={formData.address.street}
-                onChange={(e) => handleInputChange(e, 'address', 'street')}
-                required
-                className="input-field"
-                placeholder="123 Business Street"
-              />
+              <input type="text" value={formData.address.street} onChange={(e) => handleInputChange(e, 'address', 'street')} required className="input-field" placeholder="123 Business Street" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -384,7 +314,7 @@ const CompanySettings = () => {
           </div>
         </div>
 
-        {/* Tax Information with GST toggle */}
+        {/* Tax Information */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Tax Information</h2>
@@ -401,7 +331,6 @@ const CompanySettings = () => {
               </button>
             </div>
           </div>
-
           {formData.taxInfo.gstEnabled ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -417,9 +346,7 @@ const CompanySettings = () => {
             </div>
           ) : (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <p className="text-sm text-gray-500 text-center">
-                GST is disabled. Tax fields and GST calculations will be skipped on invoices.
-              </p>
+              <p className="text-sm text-gray-500 text-center">GST is disabled. Tax fields and GST calculations will be skipped on invoices.</p>
             </div>
           )}
         </div>
@@ -452,8 +379,6 @@ const CompanySettings = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
               <input type="text" value={formData.bankDetails.branch} onChange={(e) => handleInputChange(e, 'bankDetails', 'branch')} className="input-field" placeholder="Coimbatore - Avinashi Road" />
             </div>
-
-            {/* UPI subsection */}
             <div className="border-t border-gray-200 pt-4 mt-2">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">UPI Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -470,12 +395,64 @@ const CompanySettings = () => {
           </div>
         </div>
 
-        {/* Sales Targets — 12-month FY grid */}
+        {/* Sales Targets */}
         <SalesTargetsCard
           monthlyTargets={formData.monthlyTargets}
           onChange={(updated) => setFormData(prev => ({ ...prev, monthlyTargets: updated }))}
         />
-        
+
+        {/* ── INVOICE QUOTES ── */}
+        <div className="card">
+          <h2 className="text-xl font-semibold mb-1">Invoice Quotes</h2>
+          <p className="text-sm text-gray-500 mb-5">
+            A random quote will appear on every generated invoice and quotation PDF.
+          </p>
+
+          {/* Existing quotes list */}
+          {formData.quotes.length > 0 ? (
+            <div className="space-y-2 mb-5">
+              {formData.quotes.map((quote, index) => (
+                <div
+                  key={index}
+                  className="flex items-start justify-between gap-4 px-4 py-3 bg-green-50 border border-green-100 rounded-lg"
+                >
+                  <p className="text-sm text-gray-800 italic leading-relaxed flex-1">"{quote.text}"</p>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteQuote(index)}
+                    className="flex-shrink-0 text-gray-300 hover:text-red-500 transition-colors p-1 rounded"
+                    title="Delete quote"
+                  >
+                    <FiTrash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-5 mb-5 border-2 border-dashed border-gray-200 rounded-lg">
+              <p className="text-sm text-gray-400">No quotes added yet.</p>
+            </div>
+          )}
+
+          {/* Add new quote — single field */}
+          <div className="flex gap-2">
+            <textarea
+              value={newQuoteText}
+              onChange={(e) => setNewQuoteText(e.target.value)}
+              className="input-field resize-none flex-1"
+              rows={2}
+              placeholder="e.g. The secret of getting ahead is getting started."
+            />
+            <button
+              type="button"
+              onClick={handleAddQuote}
+              className="btn-primary flex items-center gap-1 self-end"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add
+            </button>
+          </div>
+        </div>
 
         {/* Terms & Conditions */}
         <div className="card">

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { quotationAPI, companyAPI } from '../services/api';
+import { quotationAPI, companyAPI, clientAPI } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { generateQuotationReport } from '../utils/reportGenerator';
+import { generateQuotationPDF } from '../utils/quotationPdfGenerator';
 import toast from 'react-hot-toast';
-import { FiPlus, FiEye, FiEdit, FiTrash2, FiFileText, FiCheckCircle, FiClock, FiXCircle, FiRefreshCw, FiDownload } from 'react-icons/fi';
+import { FiPlus, FiEye, FiEdit, FiTrash2, FiFileText, FiCheckCircle, FiClock, FiXCircle, FiRefreshCw, FiDownload, FiPrinter } from 'react-icons/fi';
 
 const QuotationList = () => {
   const navigate = useNavigate();
@@ -65,6 +66,21 @@ const QuotationList = () => {
       toast.error('Failed to delete quotation');
     }
   };
+
+  const handlePrintQuotation = async (quotation) => {
+    try {
+      // Fetch full client details
+      const clientResponse = await clientAPI.getClientById(quotation.client._id || quotation.client);
+      const fullClient = clientResponse.data.data;
+
+      // Generate PDF
+      generateQuotationPDF(quotation, company, fullClient);
+    } catch (error) {
+      console.error('Error printing quotation:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    }
+  };
+
 
   const handleConvertToInvoice = async (quotation) => {
     if (quotation.convertedToInvoice) {
@@ -323,6 +339,14 @@ const QuotationList = () => {
                         >
                           <FiEye className="h-5 w-5" />
                         </Link>
+                        
+                        <button
+                          onClick={() => handlePrintQuotation(quotation)}
+                          className="text-purple-600 hover:text-purple-900"
+                          title="Print PDF"
+                        >
+                          <FiPrinter className="h-5 w-5" />
+                        </button>
                         
                         {quotation.status === 'Accepted' && !quotation.convertedToInvoice && (
                           <button
