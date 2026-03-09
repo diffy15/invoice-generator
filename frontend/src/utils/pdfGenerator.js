@@ -79,10 +79,30 @@ export const generateInvoicePDF = (invoice, company, client) => {
       }
       .page-break { display: none; }
       .invoice-container { width: auto; background: transparent; }
+      .watermark-overlay {
+      position: fixed;
+      top: 65%;
+      left: 50%;
+      transform: translate(-50%, -65%);
+      width: 55%;
+      opacity: 0.035;
+      pointer-events: none;
+      z-index: 1;
+    }
     }
 
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .watermark-overlay {
+      position: fixed;
+      top: 65%;
+      left: 50%;
+      transform: translate(-50%, -65%);
+      width: 55%;
+      opacity: 0.035;
+      pointer-events: none;
+      z-index: 1;
+    }
       html, body { background: ${WHITE} !important; padding: 0 !important; }
       .page { box-shadow: none !important; margin: 0 !important; padding: 0 !important;
               width: auto !important; min-height: auto !important; border-radius: 0 !important; }
@@ -111,18 +131,38 @@ export const generateInvoicePDF = (invoice, company, client) => {
     }
 
     /* ── WATERMARK ── */
-    .watermark-overlay {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 55%;
-      opacity: 0.15;
-      pointer-events: none;
-      z-index: 1;
+    /* Screen: absolute inside each .page card */
+    @media screen {
+      .watermark-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 55%;
+        opacity: 0.15;
+        pointer-events: none;
+        z-index: 1;
+      }
+    }
+    /* Print: fixed repeats on every PDF page automatically */
+    @media print {
+      .watermark-overlay {
+        position: fixed;
+        top: 65%;
+        left: 50%;
+        transform: translate(-50%, -65%);
+        width: 55%;
+        opacity: 0.15;
+        pointer-events: none;
+        z-index: 1;
+      }
+      /* Only render ONE watermark in print — hide the duplicate on page 2 */
+      .watermark-overlay ~ .watermark-overlay,
+      .page ~ .page .watermark-overlay {
+        display: none;
+      }
     }
     .watermark-overlay img { width: 100%; height: auto; }
-    .invoice-container > *:not(.watermark-overlay) { position: relative; z-index: 2; }
 
     /* ════════════════════════════════════════
        PAGE 1 — HEADER
@@ -171,8 +211,8 @@ export const generateInvoicePDF = (invoice, company, client) => {
 
     /* Logo image sits naturally inside the badge */
     .company-logo {
-      max-width: 42mm;
-      max-height: 22mm;
+      width: 52mm;
+      height: auto;
       object-fit: contain;
       display: block;
       position: relative;
@@ -631,7 +671,9 @@ export const generateInvoicePDF = (invoice, company, client) => {
       .page-number { display: none; }
     }
 
-    /* Utility */
+
+
+        /* Utility */
     .page-break { page-break-before: always; break-before: page; }
     .no-break   { page-break-inside: avoid; break-inside: avoid; }
   </style>
@@ -787,6 +829,11 @@ export const generateInvoicePDF = (invoice, company, client) => {
     </div>
   </div>
 
+
+
+  <!-- LOGO: bottom left, below totals -->
+
+
   <div class="page-number">Page 1 of 2</div>
 
   </div><!-- end .page (page 1) -->
@@ -794,6 +841,8 @@ export const generateInvoicePDF = (invoice, company, client) => {
   <!-- ══════════ PAGE 2 ══════════ -->
   <div class="page-break"></div>
   <div class="page">
+
+  ${hasWatermark ? `<div class="watermark-overlay"><img src="${watermark}" alt=""></div>` : ''}
 
   <!-- Top accent bar -->
   <div class="top-bar"></div>

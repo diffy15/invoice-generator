@@ -66,6 +66,17 @@ export const generateQuotationPDF = (quotation, company, client) => {
       }
       .page-break { display: none; }
       .quotation-container { width: auto; background: transparent; }
+      /* Screen: watermark absolute inside each .page card */
+      .watermark-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 55%;
+        opacity: 0.15;
+        pointer-events: none;
+        z-index: 1;
+      }
     }
 
     @media print {
@@ -77,6 +88,22 @@ export const generateQuotationPDF = (quotation, company, client) => {
       table { page-break-inside: auto; }
       tr    { page-break-inside: avoid; break-inside: avoid; }
       thead { display: table-header-group; }
+      /* Print: fixed repeats on every PDF page automatically */
+      .watermark-overlay {
+        position: fixed;
+        top: 65%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 55%;
+        opacity: 0.15;
+        pointer-events: none;
+        z-index: 1;
+      }
+      /* Hide duplicate watermark on page 2 in print */
+      .page ~ .page .watermark-overlay {
+        display: none;
+      }
+      .page-number { display: none; }
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -88,13 +115,7 @@ export const generateQuotationPDF = (quotation, company, client) => {
 
     .quotation-container { position: relative; width: 100%; background: ${WHITE}; margin: 0 auto; }
 
-    .watermark-overlay {
-      position: fixed; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 55%; opacity: 0.15; pointer-events: none; z-index: 1;
-    }
     .watermark-overlay img { width: 100%; height: auto; }
-    .quotation-container > *:not(.watermark-overlay) { position: relative; z-index: 2; }
 
     /* ── TOP BAR ── */
     .top-bar {
@@ -123,8 +144,13 @@ export const generateQuotationPDF = (quotation, company, client) => {
       width: 4px; background: ${SK_GREEN}; border-radius: 12px 0 0 12px;
     }
     .company-logo {
-      max-width: 42mm; max-height: 22mm; object-fit: contain;
-      display: block; position: relative; z-index: 2; margin-left: 12px;
+      width: 52mm;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      position: relative;
+      z-index: 2;
+      margin-left: 12px;
     }
     .company-name-text {
       font-family: 'Playfair Display', Georgia, serif; font-size: 13pt;
@@ -352,10 +378,8 @@ export const generateQuotationPDF = (quotation, company, client) => {
         letter-spacing: 0.3px;
       }
     }
-    /* Print: hidden (handled by @page margin box above) */
-    @media print {
-      .page-number { display: none; }
-    }
+
+
 
     .page-break { page-break-before: always; break-before: page; }
     .no-break   { page-break-inside: avoid; break-inside: avoid; }
@@ -373,6 +397,7 @@ export const generateQuotationPDF = (quotation, company, client) => {
 
   <!-- HEADER -->
   <div class="quotation-header no-break">
+
     <div class="logo-wrap">
       ${hasLogo
         ? `<img src="${logo}" alt="${company.name}" class="company-logo">`
@@ -507,6 +532,11 @@ export const generateQuotationPDF = (quotation, company, client) => {
     </div>
   </div>
 
+
+
+  <!-- LOGO: bottom left, below totals -->
+
+
   <div class="page-number">Page 1 of 2</div>
 
   </div><!-- end .page (page 1) -->
@@ -514,6 +544,8 @@ export const generateQuotationPDF = (quotation, company, client) => {
   <!-- ══════════ PAGE 2 ══════════ -->
   <div class="page-break"></div>
   <div class="page">
+
+  ${hasWatermark ? `<div class="watermark-overlay"><img src="${watermark}" alt=""></div>` : ''}
 
   <div class="top-bar"></div>
 

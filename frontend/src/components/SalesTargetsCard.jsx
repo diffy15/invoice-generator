@@ -20,20 +20,22 @@ const fc = (n) =>
     style: 'currency', currency: 'INR', maximumFractionDigits: 0
   }).format(n || 0);
 
-// ── Build default 12-entry array for current FY ───────────────
-export const buildDefaultTargets = () => {
-  const now      = new Date();
-  const fyStart  = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+// ── Build default 12-entry array for a given FY start year ───
+export const buildDefaultTargets = (fyStartYear) => {
+  const year = fyStartYear ?? (() => {
+    const now = new Date();
+    return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  })();
   return FY_MONTHS.map(month => ({
     month,
-    year:   ['Jan','Feb','Mar'].includes(month) ? fyStart + 1 : fyStart,
+    year: ['Jan','Feb','Mar'].includes(month) ? year + 1 : year,
     target: 0,
   }));
 };
 
-// ── Merge saved targets with the current-FY skeleton ─────────
-export const mergeTargets = (saved = []) => {
-  const defaults = buildDefaultTargets();
+// ── Merge saved targets with a FY skeleton ───────────────────
+export const mergeTargets = (saved = [], fyStartYear) => {
+  const defaults = buildDefaultTargets(fyStartYear);
   if (!saved || saved.length === 0) return defaults;
   return defaults.map(d => {
     const s = saved.find(t => t.month === d.month && t.year === d.year);
@@ -41,12 +43,28 @@ export const mergeTargets = (saved = []) => {
   });
 };
 
-// ─────────────────────────────────────────────────────────────
-const SalesTargetsCard = ({ monthlyTargets = [], onChange }) => {
-  const targets = useMemo(() => mergeTargets(monthlyTargets), [monthlyTargets]);
+// ── Generate FY options: 5 years back, 2 years forward ───────
+export const getFYOptions = () => {
+  const now      = new Date();
+  const currentFY = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const options  = [];
+  for (let y = currentFY - 5; y <= currentFY + 2; y++) {
+    options.push({
+      value: y,
+      label: `FY ${y}–${String(y + 1).slice(-2)}`,
+    });
+  }
+  return options;
+};
 
-  const fyStart = targets.find(t => t.month === 'Apr')?.year;
+// ─────────────────────────────────────────────────────────────
+const SalesTargetsCard = ({ monthlyTargets = [], onChange, selectedFY, onFYChange }) => {
+  const targets = useMemo(() => mergeTargets(monthlyTargets, selectedFY), [monthlyTargets, selectedFY]);
+
+  const fyStart = selectedFY ?? (targets.find(t => t.month === 'Apr')?.year);
   const fyLabel = fyStart ? `FY ${fyStart}–${String(fyStart + 1).slice(-2)}` : '';
+
+  const fyOptions = getFYOptions();
 
   const getT = (month) => targets.find(t => t.month === month)?.target || 0;
 
@@ -70,10 +88,31 @@ const SalesTargetsCard = ({ monthlyTargets = [], onChange }) => {
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-xl font-semibold">Sales Targets</h2>
-        <span className="text-xs font-semibold px-3 py-1 rounded-full"
-          style={{ background: 'rgba(168,216,184,0.4)', color: '#14532d', border: '1px solid #A8D8B8' }}>
-          {fyLabel}
-        </span>
+
+        {/* FY Dropdown */}
+        {onFYChange ? (
+          <select
+            value={fyStart || ''}
+            onChange={e => onFYChange(Number(e.target.value))}
+            className="text-xs font-semibold px-3 py-1 rounded-full cursor-pointer outline-none"
+            style={{
+              background: 'rgba(168,216,184,0.4)',
+              color: '#14532d',
+              border: '1px solid #A8D8B8',
+            }}
+          >
+            {fyOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        ) : (
+          <span
+            className="text-xs font-semibold px-3 py-1 rounded-full"
+            style={{ background: 'rgba(168,216,184,0.4)', color: '#14532d', border: '1px solid #A8D8B8' }}
+          >
+            {fyLabel}
+          </span>
+        )}
       </div>
       <p className="text-sm text-gray-500 mb-5">
         Enter a target for each month — quarters, half-years and annual total calculate automatically.

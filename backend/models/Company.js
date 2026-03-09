@@ -32,17 +32,31 @@ const companySchema = new mongoose.Schema({
     type: String,
     default: 'Payment is due within 30 days of invoice date.'
   },
-  // NEW: 12-month targets stored as plain array (not subdocuments)
+
+  // ── PER-FY TARGETS ──────────────────────────────────────────
+  // Keyed by FY start year (e.g. "2025" = FY 2025-26)
+  // Each value is an array of 12 { month, year, target } entries
+  fyTargets: {
+    type: Map,
+    of: [{
+      month:  { type: String, required: true },
+      year:   { type: Number, required: true },
+      target: { type: Number, default: 0, min: 0 },
+      _id: false
+    }],
+    default: {}
+  },
+
+  // Legacy fields kept for backward-compat
   monthlyTargets: {
     type: [{
       month:  { type: String, required: true },
       year:   { type: Number, required: true },
       target: { type: Number, default: 0, min: 0 },
-      _id: false  // inline, not separate schema
+      _id: false
     }],
     default: []
   },
-  // Legacy fields kept for backward-compat
   salesTargets: {
     monthly:    { type: Number, default: 0 },
     quarterly:  { type: Number, default: 0 },

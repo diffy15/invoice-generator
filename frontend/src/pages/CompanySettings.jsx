@@ -3,13 +3,17 @@ import { companyAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { FiSave, FiBriefcase, FiPlus, FiTrash2 } from 'react-icons/fi';
 import RichTextEditor from '../components/RichTextEditor';
-import SalesTargetsCard, { buildDefaultTargets, mergeTargets } from '../components/SalesTargetsCard';
+import SalesTargetsCard, { buildDefaultTargets, mergeTargets, getFYOptions } from '../components/SalesTargetsCard';
 
 const CompanySettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyId, setCompanyId] = useState(null);
   const [newQuoteText, setNewQuoteText] = useState('');
+
+  // FY selector — defaults to current FY
+  const currentFY = (() => { const n = new Date(); return n.getMonth() >= 3 ? n.getFullYear() : n.getFullYear() - 1; })();
+  const [selectedFY, setSelectedFY] = useState(currentFY);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -40,7 +44,7 @@ const CompanySettings = () => {
       upiPhone: ''
     },
     termsAndConditions: 'Payment is due within 30 days of invoice date.',
-    monthlyTargets: buildDefaultTargets(),
+    fyTargets: {},
     quotes: [],
     logo: '',
     watermark: '',
@@ -56,7 +60,18 @@ const CompanySettings = () => {
       const response = await companyAPI.getCompany();
       if (response.data.data) {
         const data = response.data.data;
-        const merged = mergeTargets(data.monthlyTargets || []);
+
+        // fyTargets comes back as a plain object from Mongoose Map
+        const fyTargets = data.fyTargets || {};
+
+        // If the backend has old-style monthlyTargets but no fyTargets yet,
+        // migrate them into the current FY slot so data isn't lost
+        if (Object.keys(fyTargets).length === 0 && (data.monthlyTargets || []).length > 0) {
+          const now = new Date();
+          const legacyFY = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+          fyTargets[String(legacyFY)] = data.monthlyTargets;
+        }
+
         setFormData(prev => ({
           ...prev,
           name: data.name || prev.name,
@@ -74,7 +89,7 @@ const CompanySettings = () => {
           termsAndConditions: data.termsAndConditions || prev.termsAndConditions,
           logo: data.logo || prev.logo,
           watermark: data.watermark || prev.watermark,
-          monthlyTargets: merged,
+          fyTargets,
           quotes: data.quotes || [],
         }));
         setCompanyId(data._id);
@@ -397,8 +412,16 @@ const CompanySettings = () => {
 
         {/* Sales Targets */}
         <SalesTargetsCard
-          monthlyTargets={formData.monthlyTargets}
-          onChange={(updated) => setFormData(prev => ({ ...prev, monthlyTargets: updated }))}
+          monthlyTargets={mergeTargets(formData.fyTargets?.[String(selectedFY)] || [], selectedFY)}
+          onChange={(updated) => setFormData(prev => ({
+            ...prev,
+            fyTargets: { ...prev.fyTargets, [String(selectedFY)]: updated }
+          }))}
+          selectedFY={selectedFY}
+          onFYChange={(fy) => {
+            setSelectedFY(fy);
+            // Don't wipe data — just switch view; targets for new FY default to 0 if not yet set
+          }}
         />
 
         {/* ── INVOICE QUOTES ── */}
