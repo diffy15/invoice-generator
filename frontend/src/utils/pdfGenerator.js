@@ -117,7 +117,7 @@ export const generateInvoicePDF = (invoice, company, client) => {
       left: 50%;
       transform: translate(-50%, -50%);
       width: 55%;
-      opacity: 0.035;
+      opacity: 0.15;
       pointer-events: none;
       z-index: 1;
     }

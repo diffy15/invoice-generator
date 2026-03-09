@@ -91,7 +91,7 @@ export const generateQuotationPDF = (quotation, company, client) => {
     .watermark-overlay {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 55%; opacity: 0.035; pointer-events: none; z-index: 1;
+      width: 55%; opacity: 0.15; pointer-events: none; z-index: 1;
     }
     .watermark-overlay img { width: 100%; height: auto; }
     .quotation-container > *:not(.watermark-overlay) { position: relative; z-index: 2; }
