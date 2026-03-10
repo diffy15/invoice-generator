@@ -1,12 +1,12 @@
 require('dotenv').config();
-const express  = require('express');
+const express = require('express');
 const connectDB = require('./config/db');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
-const productRoutes  = require('./routes/productRoutes');
-const clientRoutes   = require('./routes/clientRoutes');
-const invoiceRoutes  = require('./routes/invoiceRoutes');
-const companyRoutes  = require('./routes/companyRoutes');
+const productRoutes = require('./routes/productRoutes');
+const clientRoutes = require('./routes/clientRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
+const companyRoutes = require('./routes/companyRoutes');
 const categoryRoutes = require('./routes/categories');
 const quotationRoutes = require('./routes/quotations');
 
@@ -17,7 +17,8 @@ const cors = require('cors');
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
-  'https://invoice-generator-frontend.netlify.app'
+  'https://invoice-generator-frontend.netlify.app',
+  'https://invoice.strategicknights.com'
 ];
 app.use(cors({
   origin: (origin, callback) => {
@@ -25,8 +26,8 @@ app.use(cors({
     else callback(new Error('CORS not allowed'));
   },
   credentials: true,
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','Accept'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   maxAge: 86400
 }));
 
@@ -36,10 +37,10 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use((req, res, next) => { console.log(`${req.method} ${req.path}`); next(); });
 
 /* ── Routes ── */
-app.use('/api/products',   productRoutes);
-app.use('/api/clients',    clientRoutes);
-app.use('/api/invoices',   invoiceRoutes);
-app.use('/api/company',    companyRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/company', companyRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/quotations', quotationRoutes);
 
