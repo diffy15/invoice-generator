@@ -44,7 +44,7 @@ const CompanySettings = () => {
       upiPhone: ''
     },
     termsAndConditions: 'Payment is due within 30 days of invoice date.',
-    fyTargets: {},
+    fyData: {},
     quotes: [],
     logo: '',
     watermark: '',
@@ -61,15 +61,14 @@ const CompanySettings = () => {
       if (response.data.data) {
         const data = response.data.data;
 
-        // fyTargets comes back as a plain object from Mongoose Map
-        const fyTargets = data.fyTargets || {};
+        // fyData stores both targets and achieved per FY
+        const fyData = data.fyData || {};
 
-        // If the backend has old-style monthlyTargets but no fyTargets yet,
-        // migrate them into the current FY slot so data isn't lost
-        if (Object.keys(fyTargets).length === 0 && (data.monthlyTargets || []).length > 0) {
+        // Migrate legacy monthlyTargets → fyData if needed
+        if (Object.keys(fyData).length === 0 && (data.monthlyTargets || []).length > 0) {
           const now = new Date();
           const legacyFY = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-          fyTargets[String(legacyFY)] = data.monthlyTargets;
+          fyData[String(legacyFY)] = { months: data.monthlyTargets, lastSyncedAt: null };
         }
 
         setFormData(prev => ({
@@ -89,7 +88,7 @@ const CompanySettings = () => {
           termsAndConditions: data.termsAndConditions || prev.termsAndConditions,
           logo: data.logo || prev.logo,
           watermark: data.watermark || prev.watermark,
-          fyTargets,
+          fyData,
           quotes: data.quotes || [],
         }));
         setCompanyId(data._id);
@@ -164,11 +163,20 @@ const CompanySettings = () => {
     }
 
     try {
+      // Save targets for selected FY via dedicated endpoint (preserves achieved)
+      const fyKey    = String(selectedFY);
+      const fyMonths = formData.fyData?.[fyKey]?.months || [];
+      if (fyMonths.length > 0) {
+        await companyAPI.saveFYTargets(fyKey, { months: fyMonths });
+      }
+
+      // Save all other company fields — exclude fyData to avoid overwriting achieved
+      const { fyData, ...companyFields } = formData;
       if (companyId) {
-        await companyAPI.updateCompany(companyId, formData);
+        await companyAPI.updateCompany(companyId, companyFields);
         toast.success('Company details updated successfully!');
       } else {
-        const response = await companyAPI.createCompany(formData);
+        const response = await companyAPI.createCompany(companyFields);
         setCompanyId(response.data.data._id);
         toast.success('Company details created successfully!');
       }
@@ -412,16 +420,19 @@ const CompanySettings = () => {
 
         {/* Sales Targets */}
         <SalesTargetsCard
-          monthlyTargets={mergeTargets(formData.fyTargets?.[String(selectedFY)] || [], selectedFY)}
+          monthlyTargets={mergeTargets(formData.fyData?.[String(selectedFY)]?.months || [], selectedFY)}
           onChange={(updated) => setFormData(prev => ({
             ...prev,
-            fyTargets: { ...prev.fyTargets, [String(selectedFY)]: updated }
+            fyData: {
+              ...prev.fyData,
+              [String(selectedFY)]: {
+                ...(prev.fyData?.[String(selectedFY)] || {}),
+                months: updated,
+              }
+            }
           }))}
           selectedFY={selectedFY}
-          onFYChange={(fy) => {
-            setSelectedFY(fy);
-            // Don't wipe data — just switch view; targets for new FY default to 0 if not yet set
-          }}
+          onFYChange={(fy) => setSelectedFY(fy)}
         />
 
         {/* ── INVOICE QUOTES ── */}

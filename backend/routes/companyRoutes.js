@@ -1,49 +1,37 @@
 const express = require('express');
-const router = express.Router();
+const router  = express.Router();
 const {
-  getCompany,
-  getCompanyById,
-  createCompany,
-  updateCompany,
-  deleteCompany,
-  // NEW: FY-based controllers
+  getCompany, getCompanyById, createCompany, updateCompany, deleteCompany,
   getCurrentFY,
-  getFYTargets,
-  saveFYTargets,
-  getAllFYTargets,
-  deleteFYTargets
+  getFYData, saveFYTargets, syncFYAchieved, getAllFYData, deleteFYData,
 } = require('../controllers/companyController');
 
-// If you have auth middleware, import it here:
-// const { protect } = require('../middleware/auth');
+// ── IMPORTANT: specific routes MUST come before /:id ─────────
+// Otherwise Express matches /current-fy and /fy-data as /:id
 
-// ═══════════════════════════════════════════════════════
-// EXISTING ROUTES - NO CHANGES
-// ═══════════════════════════════════════════════════════
+// FY utility
+router.get('/current-fy', getCurrentFY);
 
+// FY data overview
+router.get('/fy-data', getAllFYData);
+
+// FY data for specific year
+router.route('/fy-data/:fy')
+  .get(getFYData)
+  .put(saveFYTargets)
+  .delete(deleteFYData);
+
+// Force-resync achieved for a specific FY from invoice data
+router.post('/fy-data/:fy/sync', syncFYAchieved);
+
+// ── General company routes ────────────────────────────────────
 router.route('/')
   .get(getCompany)
-  .post(createCompany);  // Add protect if you have auth
+  .post(createCompany);
 
 router.route('/:id')
   .get(getCompanyById)
-  .put(updateCompany)    // Add protect if you have auth
-  .delete(deleteCompany); // Add protect if you have auth
-
-// ═══════════════════════════════════════════════════════
-// NEW: FY-BASED ROUTES - ADD THESE
-// ═══════════════════════════════════════════════════════
-
-// Get current financial year info
-router.get('/current-fy', getCurrentFY);
-
-// Get all FY targets (overview)
-router.get('/fy-targets', getAllFYTargets);
-
-// Get/Save/Delete targets for specific FY
-router.route('/fy-targets/:fy')
-  .get(getFYTargets)
-  .put(saveFYTargets)     // Add protect if you have auth
-  .delete(deleteFYTargets); // Add protect if you have auth
+  .put(updateCompany)
+  .delete(deleteCompany);
 
 module.exports = router;

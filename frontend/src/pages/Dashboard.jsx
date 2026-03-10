@@ -200,10 +200,13 @@ const Dashboard = () => {
   const fyMonthlyRevenue = stats?.fyMonthlyRevenue || [];
   const fyStartYear      = stats?.fyStartYear ?? selectedFY;
 
-  // ── Targets: read from company.fyTargets[selectedFY] ────
+  // ── Targets: read from fyData[selectedFY].months, fall back to legacy ────
   const monthlyTargets = useMemo(() => {
     const fyKey   = String(selectedFY);
-    const fySlice = (company?.fyTargets || {})[fyKey] || [];
+    const fySlice = (company?.fyData || {})[fyKey]?.months
+                 || (company?.fyTargets || {})[fyKey]
+                 || company?.monthlyTargets
+                 || [];
     return mergeTargets(fySlice, selectedFY);
   }, [company, selectedFY]);
 
