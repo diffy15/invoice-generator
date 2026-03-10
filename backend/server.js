@@ -18,7 +18,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://invoice-generator-frontend.netlify.app',
-  'https://invoice.strategicknights.com'
+  'https://invoice.strategicknights.com',
+  'https://vocal-flan-6fd44b.netlify.app'
 ];
 app.use(cors({
   origin: (origin, callback) => {
