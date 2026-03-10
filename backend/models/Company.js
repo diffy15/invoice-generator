@@ -15,17 +15,17 @@ const fyDataSchema = new mongoose.Schema({
 });
 
 const companySchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
+  name: { type: String, default: '', trim: true },
   address: {
-    street:  { type: String, required: true },
-    city:    { type: String, required: true },
-    state:   { type: String, required: true },
-    pincode: { type: String, required: true },
+    street:  { type: String, default: '' },
+    city:    { type: String, default: '' },
+    state:   { type: String, default: '' },
+    pincode: { type: String, default: '' },
     country: { type: String, default: 'India' }
   },
   contact: {
-    email:   { type: String, required: true },
-    phone:   { type: String, required: true },
+    email:   { type: String, default: '' },
+    phone:   { type: String, default: '' },
     website: { type: String, default: '' }
   },
   taxInfo: {

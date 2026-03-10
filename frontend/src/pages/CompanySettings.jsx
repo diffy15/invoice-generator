@@ -156,12 +156,6 @@ const CompanySettings = () => {
     e.preventDefault();
     setSaving(true);
 
-    if (formData.taxInfo.gstEnabled && !formData.taxInfo.gstin.trim()) {
-      toast.error('GSTIN is required when GST is enabled');
-      setSaving(false);
-      return;
-    }
-
     try {
       // Save targets for selected FY via dedicated endpoint (preserves achieved)
       const fyKey    = String(selectedFY);
@@ -213,7 +207,7 @@ const CompanySettings = () => {
         <div className="card">
           <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
             <input
               type="text"
               name="name"
@@ -292,26 +286,26 @@ const CompanySettings = () => {
           <h2 className="text-xl font-semibold mb-4">Address</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
               <input type="text" value={formData.address.street} onChange={(e) => handleInputChange(e, 'address', 'street')} required className="input-field" placeholder="123 Business Street" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
                 <input type="text" value={formData.address.city} onChange={(e) => handleInputChange(e, 'address', 'city')} required className="input-field" placeholder="Coimbatore" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
                 <input type="text" value={formData.address.state} onChange={(e) => handleInputChange(e, 'address', 'state')} required className="input-field" placeholder="Tamil Nadu" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pincode *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
                 <input type="text" value={formData.address.pincode} onChange={(e) => handleInputChange(e, 'address', 'pincode')} required className="input-field" placeholder="641001" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
                 <input type="text" value={formData.address.country} onChange={(e) => handleInputChange(e, 'address', 'country')} required className="input-field" placeholder="India" />
               </div>
             </div>
@@ -323,11 +317,11 @@ const CompanySettings = () => {
           <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-              <input type="email" value={formData.contact.email} onChange={(e) => handleInputChange(e, 'contact', 'email')} required className="input-field" placeholder="contact@strategicknights.com" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="text" value={formData.contact.email} onChange={(e) => handleInputChange(e, 'contact', 'email')} className="input-field" placeholder="contact@strategicknights.com" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
               <input type="tel" value={formData.contact.phone} onChange={(e) => handleInputChange(e, 'contact', 'phone')} required className="input-field" placeholder="+91 8248821426" />
             </div>
             <div className="md:col-span-2">
@@ -357,7 +351,7 @@ const CompanySettings = () => {
           {formData.taxInfo.gstEnabled ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">GSTIN *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
                 <input type="text" value={formData.taxInfo.gstin} onChange={(e) => handleInputChange(e, 'taxInfo', 'gstin')} className="input-field" placeholder="29ABCDE1234F1Z5" />
                 <p className="text-xs text-gray-500 mt-1">15-character GST Identification Number</p>
               </div>

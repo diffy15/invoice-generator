@@ -29,7 +29,14 @@ const getCompanyById = async (req, res) => {
 // @route   POST /api/company
 const createCompany = async (req, res) => {
   try {
-    const company = await Company.create(req.body);
+    // Provide defaults for any missing fields so nothing is required
+    const body = {
+      name: '',
+      address: { street: '', city: '', state: '', pincode: '', country: 'India' },
+      contact: { email: '', phone: '', website: '' },
+      ...req.body,
+    };
+    const company = await Company.create(body);
     res.status(201).json({ success: true, data: company });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
