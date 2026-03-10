@@ -32,22 +32,8 @@ const companySchema = new mongoose.Schema({
     type: String,
     default: 'Payment is due within 30 days of invoice date.'
   },
-
-  // ── PER-FY TARGETS ──────────────────────────────────────────
-  // Keyed by FY start year (e.g. "2025" = FY 2025-26)
-  // Each value is an array of 12 { month, year, target } entries
-  fyTargets: {
-    type: Map,
-    of: [{
-      month:  { type: String, required: true },
-      year:   { type: Number, required: true },
-      target: { type: Number, default: 0, min: 0 },
-      _id: false
-    }],
-    default: {}
-  },
-
-  // Legacy fields kept for backward-compat
+  
+  // Existing field - keep this
   monthlyTargets: {
     type: [{
       month:  { type: String, required: true },
@@ -57,6 +43,29 @@ const companySchema = new mongoose.Schema({
     }],
     default: []
   },
+  
+  // ═══════════════════════════════════════════════════════
+  // NEW FIELDS - FY Support (SIMPLIFIED)
+  // ═══════════════════════════════════════════════════════
+  
+  // Financial Year Settings
+  fyStartMonth: {
+    type: Number,
+    default: 3,  // April (0-indexed: 0=Jan, 3=Apr)
+    min: 0,
+    max: 11
+  },
+  
+  // FY-based sales targets - SIMPLIFIED to plain object
+  // Stores as: { "2025-2026": { monthly: {...}, quarterly: {...}, ... } }
+  fyTargets: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
+  
+  // ═══════════════════════════════════════════════════════
+  // Legacy fields - keep for backward compatibility
+  // ═══════════════════════════════════════════════════════
   salesTargets: {
     monthly:    { type: Number, default: 0 },
     quarterly:  { type: Number, default: 0 },
@@ -64,6 +73,7 @@ const companySchema = new mongoose.Schema({
     annual:     { type: Number, default: 0 }
   },
   monthlyTarget: { type: Number, default: 0 },
+  
   quotes: {
     type: [{ text: { type: String, required: true }, _id: false }],
     default: []

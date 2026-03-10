@@ -43,15 +43,16 @@ export const mergeTargets = (saved = [], fyStartYear) => {
   });
 };
 
-// ── Generate FY options: 5 years back, 2 years forward ───────
+// ── Generate FY options: 3 years back, 2 years forward ───────
 export const getFYOptions = () => {
-  const now      = new Date();
+  const now = new Date();
   const currentFY = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-  const options  = [];
-  for (let y = currentFY - 5; y <= currentFY + 2; y++) {
+  const options = [];
+  for (let y = currentFY - 3; y <= currentFY + 2; y++) {
     options.push({
       value: y,
       label: `FY ${y}–${String(y + 1).slice(-2)}`,
+      isCurrent: y === currentFY,
     });
   }
   return options;
@@ -62,8 +63,6 @@ const SalesTargetsCard = ({ monthlyTargets = [], onChange, selectedFY, onFYChang
   const targets = useMemo(() => mergeTargets(monthlyTargets, selectedFY), [monthlyTargets, selectedFY]);
 
   const fyStart = selectedFY ?? (targets.find(t => t.month === 'Apr')?.year);
-  const fyLabel = fyStart ? `FY ${fyStart}–${String(fyStart + 1).slice(-2)}` : '';
-
   const fyOptions = getFYOptions();
 
   const getT = (month) => targets.find(t => t.month === month)?.target || 0;
@@ -73,7 +72,6 @@ const SalesTargetsCard = ({ monthlyTargets = [], onChange, selectedFY, onFYChang
     onChange(targets.map(t => t.month === month ? { ...t, target: val } : t));
   };
 
-  // Auto-calculated totals
   const qTotals = QUARTERS.map(q => ({
     ...q,
     total: q.months.reduce((s, m) => s + getT(m), 0),
@@ -89,30 +87,22 @@ const SalesTargetsCard = ({ monthlyTargets = [], onChange, selectedFY, onFYChang
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-xl font-semibold">Sales Targets</h2>
 
-        {/* FY Dropdown */}
-        {onFYChange ? (
-          <select
-            value={fyStart || ''}
-            onChange={e => onFYChange(Number(e.target.value))}
-            className="text-xs font-semibold px-3 py-1 rounded-full cursor-pointer outline-none"
-            style={{
-              background: 'rgba(168,216,184,0.4)',
-              color: '#14532d',
-              border: '1px solid #A8D8B8',
-            }}
-          >
-            {fyOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        ) : (
-          <span
-            className="text-xs font-semibold px-3 py-1 rounded-full"
-            style={{ background: 'rgba(168,216,184,0.4)', color: '#14532d', border: '1px solid #A8D8B8' }}
-          >
-            {fyLabel}
-          </span>
-        )}
+        <select
+          value={fyStart || ''}
+          onChange={e => onFYChange && onFYChange(Number(e.target.value))}
+          className="text-xs font-semibold px-3 py-1 rounded-full cursor-pointer outline-none"
+          style={{
+            background: 'rgba(168,216,184,0.4)',
+            color: '#14532d',
+            border: '1px solid #A8D8B8',
+          }}
+        >
+          {fyOptions.map(opt => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}{opt.isCurrent ? ' (Current)' : ''}
+            </option>
+          ))}
+        </select>
       </div>
       <p className="text-sm text-gray-500 mb-5">
         Enter a target for each month — quarters, half-years and annual total calculate automatically.
@@ -123,8 +113,6 @@ const SalesTargetsCard = ({ monthlyTargets = [], onChange, selectedFY, onFYChang
         {qTotals.map((q) => (
           <div key={q.key} className="rounded-xl overflow-hidden"
             style={{ border: '1px solid #C8DDD4' }}>
-
-            {/* Quarter header */}
             <div className="flex items-center justify-between px-4 py-2.5"
               style={{ background: 'rgba(200,240,216,0.35)' }}>
               <div className="flex items-center gap-2">
@@ -136,19 +124,14 @@ const SalesTargetsCard = ({ monthlyTargets = [], onChange, selectedFY, onFYChang
                 <span className="text-sm font-bold text-green-800">{fc(q.total)}</span>
               </div>
             </div>
-
-            {/* 3 month input columns */}
             <div className="grid grid-cols-3" style={{ borderTop: '1px solid #C8DDD4' }}>
               {q.months.map((month, idx) => (
-                <div key={month}
-                  className="p-3"
+                <div key={month} className="p-3"
                   style={{
                     background: 'rgba(255,255,255,0.7)',
                     borderLeft: idx > 0 ? '1px solid #C8DDD4' : 'none',
                   }}>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    {month}
-                  </label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">{month}</label>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 select-none">₹</span>
                     <input
